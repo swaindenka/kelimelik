@@ -1201,6 +1201,7 @@ function turSonuGoster(r, d) {
   const m = sonucMetinleri(r);
   clearTimeout(turSonuZaman);
   afisleriTemizle();
+  sayacTemizle($('sonSayac')); // son saniye sayacı sonuç ekranından sonra yeniden belirmesin
   el.className = 'tur-sonu ' + m.tur;
   el.querySelector('.ts-ust').textContent = `Seviye ${r.seviye} · ${m.ust}`;
   el.querySelector('.ts-baslik').textContent = m.baslik;
@@ -1589,6 +1590,18 @@ function buyukSayac(n) {
   alanOlcu();
   el.textContent = n;
   yenidenOynat(el, 'goster');
+}
+
+// Sayaçların animasyonu bitince "goster" sınıfı ve rakam kaldırılır. Aksi hâlde öğe gizlenip
+// yeniden görünür olduğunda (ör. sonuç kartı kapatılınca) tarayıcı animasyonu baştan oynatır
+// ve son rakam ("1") tekrar belirir.
+function sayacTemizle(el) {
+  el.classList.remove('goster');
+  el.textContent = '';
+}
+// (Animasyon bitmeden seviye biterse sayaç turSonuGoster içinde ayrıca temizlenir.)
+for (const id of ['sonSayac', 'buyukSayac']) {
+  $(id).addEventListener('animationend', (e) => { if (e.target === e.currentTarget) sayacTemizle(e.currentTarget); });
 }
 
 // ---------- Zamanlayıcı: süre, geri sayım, otomatik karıştırma, müzik ----------

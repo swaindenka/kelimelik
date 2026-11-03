@@ -3,7 +3,7 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
-const { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, harfDegeri, kalabalikCarpani, DILLER, HAZINE_CARPAN, ZORLUKLAR, TURLER } = require('./game');
+const { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, harfDegeri, kalabalikCarpani, zarAt, ZAR_ARALIK, DILLER, HAZINE_CARPAN, ZORLUKLAR, TURLER } = require('./game');
 
 const PORT = process.env.PORT || 3000;
 const SONUC_SURESI = 16000;  // seviye sonu ekranı (ms) — tahtaya bakmaya zaman kalsın; herkes hazırsa erken başlar
@@ -22,6 +22,7 @@ const BOMBA_ODUL = 60;       // bombayı imha eden kelimeye ek puan (× seviye p
 // Kum saati turu: bulunan kelime süre ekler — 2 sn + 3 harften sonraki her iki harf için 1 sn (büyük kelime 6 sn)
 const kumSaatiEk = (w, buyuk) => (buyuk ? 6000 : 2000 + Math.floor(Math.max(0, w.length - 3) / 2) * 1000);
 const KUM_BONUS_EK = 1000;   // bonus kelime ekler
+const ZINCIR_CARPAN = 2;     // zincir turunda zincir harfiyle başlayan kelimenin puan çarpanı
 const TEPKILER = ['👏', '🔥', '😂', '😮', '😭', '❤️', '👍', '🎉'];
 const RENKLER = ['#ff6b6b', '#4dabf7', '#51cf66', '#fcc419', '#cc5de8', '#ff922b', '#20c997', '#f06595', '#94d82d', '#748ffc', '#e599f7', '#66d9e8'];
 
@@ -151,6 +152,9 @@ function genelDurum(oda) {
       kumsaati: lv.kumsaati,
       kalabalik: lv.kalabalik,
       tabanHedef: lv.tabanHedef,
+      zincir: lv.zincir || null,
+      gorevler: lv.gorevler || null,
+      zarSonraki: lv.zarSonraki || 0,
       sahteVar: lv.harfler.some((h) => h.sahte),
       ipucuKalan: lv.ipucuKalan,
       ipucuBedel: IPUCU_BEDEL,
@@ -238,6 +242,52 @@ function bombaPatlat(oda) {
   yayinla(oda);
 }
 
+// Zincir turu: kelime sıradaki zincir harfiyle mi başlıyor? Sonra zinciri günceller.
+function zincirIsle(lv, w) {
+  if (!lv.zincir) return { zincirli: false, n: 0 };
+  const zincirli = !!lv.zincir.harf && w[0] === lv.zincir.harf;
+  lv.zincir.n = zincirli ? lv.zincir.n + 1 : 1;
+  lv.zincir.harf = w[w.length - 1];
+  return { zincirli, n: lv.zincir.n };
+}
+
+// Görev turu: bulunan kelimeye göre görevleri ilerlet; tamamlanan görev takıma ve bulana ödül verir
+function gorevIlerlet(oda, oyuncu, o, takimaEkle) {
+  const lv = oda.lv;
+  if (!lv.gorevler) return [];
+  const biten = [];
+  for (const g of lv.gorevler) {
+    if (g.tamam) continue;
+    if (g.tur === 'uzunluk' && o.tur === 'yeni' && o.w.length === g.u) g.ilerleme++;
+    else if (g.tur === 'harf' && o.tur === 'yeni' && o.w.includes(g.ch)) g.ilerleme++;
+    else if (g.tur === 'bonus' && o.tur === 'bonus') g.ilerleme++;
+    else if (g.tur === 'seri' && o.tur === 'yeni') g.ilerleme = Math.max(g.ilerleme, o.seri || 0);
+    else if (g.tur === 'buyuk' && o.tur === 'yeni' && o.buyuk) g.ilerleme = 1;
+    if (g.ilerleme < g.hedef) continue;
+    g.ilerleme = g.hedef;
+    g.tamam = true;
+    g.tamamlayan = oyuncu.id;
+    oyuncu.puan += g.odul;
+    oyuncu.seviyePuan += g.odul;
+    takimaEkle(g.odul);
+    biten.push(g);
+    akisEkle(oda, { tur: 'sistem', olay: 'gorevTamam', id: oyuncu.id, puan: g.odul, metin: `🎯 Görev tamam: ${g.hedef > 1 ? g.hedef + ' ' : ''}${g.metin} · +${g.odul} puan` });
+  }
+  return biten;
+}
+
+// Zar turu: her ZAR_ARALIK'ta taş çarpanları yeniden atılır
+function zarDongusu(oda, lv) {
+  lv.zarSonraki = Date.now() + ZAR_ARALIK;
+  oda.zamanlayicilar.push(setTimeout(() => {
+    if (oda.durum !== 'oyun' || oda.lv !== lv) return;
+    zarAt(lv);
+    akisEkle(oda, { tur: 'sistem', olay: 'zar', metin: `🎲 Zar atıldı: ${lv.harfler.filter((h) => h.carpan > 1).map((h) => `${h.ch.toLocaleUpperCase(lv.dil === 'en' ? 'en' : 'tr')} ×${h.carpan}`).join(', ')}` });
+    zarDongusu(oda, lv);
+    yayinla(oda);
+  }, ZAR_ARALIK));
+}
+
 function sureUzat(oda, ms) {
   oda.bitis += ms;
   oda.lv.sureMs += ms; // istemcideki süre halkası orantılı kalsın
@@ -248,7 +298,8 @@ function seviyeBaslat(oda) {
   zamanlayiciTemizle(oda);
   // Sonuç ekranında önceden duyurulan seviye türü kullanılır (yoksa yeni seçilir)
   oda.hazir.clear();
-  oda.lv = seviyeUret(oda.seviye, oda.ayar.zorluk, oda.sonrakiTur || undefined, oda.ayar.dil, { oyuncu: aktifOyuncu(oda) });
+  oda.lv = seviyeUret(oda.seviye, oda.ayar.zorluk, oda.sonrakiTur || undefined, oda.ayar.dil, { oyuncu: aktifOyuncu(oda), onceki: oda.oncekiTur });
+  oda.oncekiTur = oda.lv.tur;
   oda.sonrakiTur = null;
   oda.lv.kimlik = ++oda.lvSayac;
   oda.lv.ipucuKalan = IPUCU_HAKKI;
@@ -282,6 +333,7 @@ function seviyeBaslat(oda) {
       yayinla(oda);
     }, sure * 0.6));
   }
+  if (oda.lv.tur === 'zar') zarDongusu(oda, oda.lv);
   bitisKur(oda);
   const tur = TURLER[oda.lv.tur];
   const k = oda.lv.kalabalik;
@@ -356,7 +408,7 @@ function seviyeBitir(oda, neden = 'sure') {
   oda.sonSonuc.oyunBitti = !gecti && oda.ayar.can > 0 && oda.can <= 0;
   // Sıradaki seviyenin türü şimdiden seçilip sonuç ekranında duyurulur
   if (!oda.sonSonuc.oyunBitti) {
-    oda.sonrakiTur = seviyeTuru(oda.seviye);
+    oda.sonrakiTur = seviyeTuru(oda.seviye, lv.tur);
     const t = TURLER[oda.sonrakiTur];
     oda.sonSonuc.sonraki = { seviye: oda.seviye, tur: oda.sonrakiTur, ad: t.ad, ikon: t.ikon, aciklama: t.aciklama };
   }
@@ -587,7 +639,8 @@ io.on('connection', (socket) => {
       oyuncu.seviyeSeri = Math.max(oyuncu.seviyeSeri || 0, seri);
       oyuncu.enSeri = Math.max(oyuncu.enSeri || 0, seri);
       const kayit = lv.tahta[s.i];
-      const taban = Math.round(kayit.puan * hamleCarpan);
+      const z = zincirIsle(lv, s.w);
+      const taban = Math.round(kayit.puan * hamleCarpan * (z.zincirli ? ZINCIR_CARPAN : 1));
       const seriBonus = Math.round(taban * Math.min(seri - 1, SERI_UST) * SERI_BONUS);
       const puan = taban + seriBonus;
       kayit.bulan = oyuncu.id;
@@ -602,10 +655,11 @@ io.on('connection', (socket) => {
       const hazine = !!kayit.hazine;
       // Kum saati turunda her kelime süre ekler
       const kumEk = lv.kumsaati ? kumSaatiEkle(oda, kumSaatiEk(s.w, buyuk)) : 0;
-      akisEkle(oda, { tur: 'bulundu', id: oyuncu.id, w: s.w, puan, buyuk, seri, hazine, sonHamle, sureEk: kumEk });
+      akisEkle(oda, { tur: 'bulundu', id: oyuncu.id, w: s.w, puan, buyuk, seri, hazine, sonHamle, sureEk: kumEk, zincir: z.zincirli ? z.n : 0 });
       const bombaOdul = bombaKontrol(oda, oyuncu, s.w, takimaEkle);
       buzVur(oda);
-      cevap({ tur: 'yeni', w: s.w, puan, taban, buyuk, seri, seriBonus, hazine, sonHamle, sureEk: (hazine ? HAZINE_SURE : 0) + kumEk, kumEk, bombaOdul });
+      const gorev = gorevIlerlet(oda, oyuncu, { tur: 'yeni', w: s.w, seri, buyuk }, takimaEkle);
+      cevap({ tur: 'yeni', w: s.w, puan, taban, buyuk, seri, seriBonus, hazine, sonHamle, sureEk: (hazine ? HAZINE_SURE : 0) + kumEk, kumEk, bombaOdul, zincir: z.zincirli ? z.n : 0, gorev: gorev.map((g) => g.odul) });
       takimaEkle(puan);
       if (lv.tahta.every((x) => x.bulan)) {
         akisEkle(oda, { tur: 'sistem', olay: 'hepsi', metin: 'Bütün kelimeler bulundu! Mükemmel!' });
@@ -620,15 +674,17 @@ io.on('connection', (socket) => {
       return yayinla(oda);
     }
     if (s.tur === 'bonus') {
-      const puan = Math.max(1, Math.round(kelimePuani(lv, s.w) * BONUS_ORAN * hamleCarpan));
+      const z = zincirIsle(lv, s.w);
+      const puan = Math.max(1, Math.round(kelimePuani(lv, s.w) * BONUS_ORAN * hamleCarpan * (z.zincirli ? ZINCIR_CARPAN : 1)));
       lv.bonus.push({ w: s.w, bulan: oyuncu.id, puan });
       oyuncu.puan += puan;
       oyuncu.seviyePuan += puan;
       const kumEk = lv.kumsaati ? kumSaatiEkle(oda, KUM_BONUS_EK) : 0;
-      akisEkle(oda, { tur: 'bonus', id: oyuncu.id, w: s.w, puan, sonHamle, sureEk: kumEk });
+      akisEkle(oda, { tur: 'bonus', id: oyuncu.id, w: s.w, puan, sonHamle, sureEk: kumEk, zincir: z.zincirli ? z.n : 0 });
       const bombaOdul = bombaKontrol(oda, oyuncu, s.w, takimaEkle);
       buzVur(oda);
-      cevap({ tur: 'bonus', w: s.w, puan, sonHamle, kumEk, bombaOdul });
+      const gorev = gorevIlerlet(oda, oyuncu, { tur: 'bonus', w: s.w }, takimaEkle);
+      cevap({ tur: 'bonus', w: s.w, puan, sonHamle, kumEk, bombaOdul, zincir: z.zincirli ? z.n : 0, gorev: gorev.map((g) => g.odul) });
       takimaEkle(puan);
       return yayinla(oda);
     }

@@ -209,6 +209,11 @@ const Ses = (() => {
       vurus({ t0: 0, ses: 0.18 });
     },
     odul: (i = 0) => { ton(nota(86 + i * 3), 0.25, { tip: 'triangle', ses: 0.08 }); ton(nota(98 + i * 3), 0.12, { tip: 'sine', ses: 0.04 }); },
+    // Zar atıldı: tıkırtılar + yükselen ton
+    zar: () => {
+      [0, 0.07, 0.15, 0.22].forEach((t, i) => { gurultu(0.04, { t0: t, f: 2500 + i * 400, ses: 0.06, q: 3 }); ton(nota(76 + i * 2), 0.05, { tip: 'square', t0: t, ses: 0.025 }); });
+      ton(nota(84), 0.25, { tip: 'triangle', t0: 0.3, ses: 0.08, bitis: nota(91) });
+    },
     // Buz çatladı: kısa, tiz çıtırtı
     buzCatlak: () => { gurultu(0.09, { f: 6500, ses: 0.08, q: 2, tip: 'highpass' }); ton(nota(98), 0.08, { tip: 'triangle', ses: 0.05, bitis: nota(91) }); },
     // Buz çözüldü: kırılma + parıltı

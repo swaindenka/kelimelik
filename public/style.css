@@ -182,6 +182,10 @@ h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5p
 .tur-rozet[data-tur=hizli] .tr { background: rgba(77, 171, 247, .18); border-color: #4dabf7; color: #a5d8ff; }
 .tur-rozet[data-tur=kumsaati] .tr { background: rgba(32, 201, 151, .18); border-color: #20c997; color: #96f2d7; }
 .tur-rozet[data-tur=uzun] .tr { background: rgba(177, 151, 252, .18); border-color: #b197fc; color: #e5dbff; }
+.tur-rozet[data-tur=zincir] .tr { background: rgba(229, 153, 247, .18); border-color: #e599f7; color: #f3d9fa; }
+.tur-rozet[data-tur=gorev] .tr { background: rgba(255, 169, 77, .18); border-color: #ffa94d; color: #ffd8a8; }
+.tur-rozet[data-tur=zar] .tr { background: rgba(247, 131, 172, .18); border-color: #f783ac; color: #ffdeeb; }
+.tur-rozet[data-tur=firtina] .tr { background: rgba(145, 167, 255, .18); border-color: #91a7ff; color: #dbe4ff; }
 .tur-rozet[data-tur=patron] .tr { background: rgba(255, 93, 115, .2); border-color: var(--kotu); color: #ffc9d1; animation: nabizKucuk 1s ease-in-out infinite alternate; }
 .seviye-kutu b { font-size: 28px; font-weight: 900; color: var(--vurgu); line-height: 1; text-shadow: 0 0 18px rgba(255, 200, 61, .4); }
 .ilerleme { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
@@ -304,6 +308,10 @@ body.son-saniye::after {
 .tahta[data-tur=hizli] { --tahta-vurgu: 77, 171, 247; box-shadow: inset 0 0 70px rgba(0, 0, 0, .45), 0 0 34px rgba(77, 171, 247, .18); }
 .tahta[data-tur=kumsaati] { --tahta-vurgu: 32, 201, 151; box-shadow: inset 0 0 70px rgba(0, 0, 0, .45), 0 0 34px rgba(32, 201, 151, .18); }
 .tahta[data-tur=uzun] { --tahta-vurgu: 177, 151, 252; box-shadow: inset 0 0 70px rgba(0, 0, 0, .45), 0 0 34px rgba(177, 151, 252, .2); }
+.tahta[data-tur=zincir] { --tahta-vurgu: 229, 153, 247; box-shadow: inset 0 0 70px rgba(0, 0, 0, .45), 0 0 34px rgba(229, 153, 247, .18); }
+.tahta[data-tur=gorev] { --tahta-vurgu: 255, 169, 77; box-shadow: inset 0 0 70px rgba(0, 0, 0, .45), 0 0 34px rgba(255, 169, 77, .18); }
+.tahta[data-tur=zar] { --tahta-vurgu: 247, 131, 172; box-shadow: inset 0 0 70px rgba(0, 0, 0, .45), 0 0 34px rgba(247, 131, 172, .18); }
+.tahta[data-tur=firtina] { --tahta-vurgu: 145, 167, 255; box-shadow: inset 0 0 70px rgba(0, 0, 0, .45), 0 0 34px rgba(145, 167, 255, .2); }
 .tahta[data-tur=patron] { --tahta-vurgu: 255, 93, 115; box-shadow: inset 0 0 70px rgba(0, 0, 0, .45), 0 0 40px rgba(255, 93, 115, .22); }
 
 /* Uzunluğa göre grup kartı */
@@ -375,6 +383,42 @@ body.son-saniye::after {
 @keyframes ipucuAc { from { transform: scale(1.5); background: var(--vurgu); color: #2b1800; } }
 .slot.yeni .k { animation: harfAc .5s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: calc(var(--j) * 45ms); }
 @keyframes harfAc { 0% { transform: rotateX(90deg) scale(.6); filter: brightness(1.8); } 100% { transform: none; } }
+
+/* Seviye türü şeridi (zincir harfi, görevler, zar sayacı, fırtına): yüksekliği sabit, tek satır */
+.tur-serit {
+  --tv: 124, 92, 255;
+  flex: none; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0 12px; border-radius: 14px; overflow: hidden; white-space: nowrap;
+  font-size: 13px; color: rgb(var(--tv)); background: rgba(var(--tv), .1); border: 1px solid rgba(var(--tv), .35);
+}
+.tur-serit[data-tur=zincir] { --tv: 229, 153, 247; }
+.tur-serit[data-tur=gorev] { --tv: 255, 169, 77; background: none; border: none; padding: 0; gap: 6px; }
+.tur-serit[data-tur=zar] { --tv: 247, 131, 172; }
+.tur-serit[data-tur=firtina] { --tv: 145, 167, 255; }
+.tur-serit b { color: #fff; }
+.tur-serit .zincir-harf {
+  display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 5px; border-radius: 6px;
+  background: var(--tas); color: #2b2147; font-weight: 900; box-shadow: 0 2px 0 var(--tas-golge); animation: zincirHarf .4s cubic-bezier(.3, 1.6, .5, 1);
+}
+@keyframes zincirHarf { from { transform: scale(.4) rotate(-12deg); } }
+.tur-serit .zincir-n { font-weight: 900; color: #fff; }
+.tur-serit .zar-sn { font-variant-numeric: tabular-nums; }
+.tur-serit .gorev {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 4px 10px; border-radius: 14px; font-size: 12.5px;
+  color: #ffd8a8; background: rgba(255, 169, 77, .1); border: 1px solid rgba(255, 169, 77, .4);
+}
+.tur-serit .gorev.tamam { color: #c9f7d8; background: rgba(74, 222, 128, .14); border-color: rgba(74, 222, 128, .55); animation: gorevTamam .6s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes gorevTamam { 0% { transform: scale(1.25); box-shadow: 0 0 24px rgba(74, 222, 128, .8); } 100% { transform: none; } }
+/* Zar atılınca çarpanı değişen taş */
+.tas.zar-atildi { animation: zarAtildi .55s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes zarAtildi { 0% { transform: rotate(-25deg) scale(.7); filter: brightness(1.6); } 60% { transform: rotate(8deg) scale(1.1); } 100% { transform: none; } }
+/* Fırtına turunda sahnede hafif rüzgâr */
+.sahne[data-tur=firtina]::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: repeating-linear-gradient(100deg, transparent 0 60px, rgba(145, 167, 255, .07) 60px 64px, transparent 64px 130px);
+  background-size: 300% 100%; animation: ruzgar 2.2s linear infinite;
+}
+@keyframes ruzgar { to { background-position: -300% 0; } }
 
 /* Tek satırlık, yüksekliği sabit şerit: bonus bulununca tahtanın yeri değişmez */
 .bonus-satir {
@@ -724,6 +768,14 @@ body.son-saniye::after {
 .sonuc-sonraki[data-tur=kumsaati] .ss-ust { color: #96f2d7; }
 .sonuc-sonraki[data-tur=uzun] { border: 1px solid #b197fc; background: rgba(177, 151, 252, .1); }
 .sonuc-sonraki[data-tur=uzun] .ss-ust { color: #e5dbff; }
+.sonuc-sonraki[data-tur=zincir] { border: 1px solid #e599f7; background: rgba(229, 153, 247, .1); }
+.sonuc-sonraki[data-tur=zincir] .ss-ust { color: #f3d9fa; }
+.sonuc-sonraki[data-tur=gorev] { border: 1px solid #ffa94d; background: rgba(255, 169, 77, .1); }
+.sonuc-sonraki[data-tur=gorev] .ss-ust { color: #ffd8a8; }
+.sonuc-sonraki[data-tur=zar] { border: 1px solid #f783ac; background: rgba(247, 131, 172, .1); }
+.sonuc-sonraki[data-tur=zar] .ss-ust { color: #ffdeeb; }
+.sonuc-sonraki[data-tur=firtina] { border: 1px solid #91a7ff; background: rgba(145, 167, 255, .1); }
+.sonuc-sonraki[data-tur=firtina] .ss-ust { color: #dbe4ff; }
 .sonuc-sonraki[data-tur=patron] { border: 1px solid var(--kotu); background: rgba(255, 93, 115, .12); animation: patronParla 1.1s ease-in-out infinite alternate; }
 @keyframes patronParla { to { box-shadow: 0 0 24px rgba(255, 93, 115, .45); } }
 .sonuc-sonraki[data-tur=patron] .ss-ust { color: #ffc9d1; }
@@ -968,6 +1020,14 @@ body.sonuc-acik .afis { transform-origin: top; }
 .afis.tur-kumsaati b { color: #96f2d7; }
 .afis.tur-uzun { border-color: #b197fc; box-shadow: 0 0 40px rgba(177, 151, 252, .35); }
 .afis.tur-uzun b { color: #e5dbff; }
+.afis.tur-zincir { border-color: #e599f7; box-shadow: 0 0 40px rgba(229, 153, 247, .35); }
+.afis.tur-zincir b { color: #f3d9fa; }
+.afis.tur-gorev { border-color: #ffa94d; box-shadow: 0 0 40px rgba(255, 169, 77, .35); }
+.afis.tur-gorev b { color: #ffd8a8; }
+.afis.tur-zar { border-color: #f783ac; box-shadow: 0 0 40px rgba(247, 131, 172, .35); }
+.afis.tur-zar b { color: #ffdeeb; }
+.afis.tur-firtina { border-color: #91a7ff; box-shadow: 0 0 40px rgba(145, 167, 255, .35); }
+.afis.tur-firtina b { color: #dbe4ff; }
 .afis.buz { border-color: #74c0fc; box-shadow: 0 0 40px rgba(116, 192, 252, .4); }
 .afis.buz b { color: #d0ebff; }
 .afis.tur-patron { border-color: var(--kotu); box-shadow: 0 0 50px rgba(255, 93, 115, .4); }
@@ -1107,13 +1167,14 @@ body.sonuc-acik .afis { transform-origin: top; }
   body.klavye .raf::after { height: 10px; }
   body.klavye .sahne-alt { display: none; }
   body.klavye .bonus-satir { display: none; }
+  body.klavye .tur-serit { height: 24px; font-size: 11.5px; }
   body.klavye .tahta { min-height: 70px; }
   body.klavye .yazma-alani { padding-bottom: 6px; }
   body.klavye .yazma-ust { min-height: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ts-isinlar, .ts-amblem::before, .ts-atlama::after { display: none; }
+  .ts-isinlar, .ts-amblem::before, .ts-atlama::after, .sahne[data-tur=firtina]::after { display: none; }
   .tur-sonu, .tur-sonu *, .son-sayac.goster, .zaman-cubugu span { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
   .arka-harfler, body.son-saniye::after { display: none; }
   .tas.gizli-harf, .sure.cok-az, .karistir-gosterge .ikon-donen, .slot.hazine .k, .slot .hz-rozet, .son-hamle-rozet, .sonuc-sonraki { animation: none !important; }

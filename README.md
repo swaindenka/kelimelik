@@ -75,9 +75,15 @@ Oda sahibi lobide zorluğu seçer. Zorluk süreyi, puan hedefinin yüksekliğini
 
 | Tür | Ne zaman | Etkisi |
 |---|---|---|
-| ⚡ Hızlı Tur | 3. seviyeden sonra rastgele (~%16) | Süre ×0.6, hedef %25 düşük, puan ×1.25 |
-| ⏳ Kum Saati | 4. seviyeden sonra rastgele (~%12) | Sürenin %45'iyle başlar; her kelime süre ekler (2 sn + uzunluğa göre, büyük kelime 6 sn, bonus 1 sn). Süre başlangıçtaki tam süreyi aşamaz. Hedef %10 düşük, puan ×1.2 |
-| 📏 Uzun Kelime Turu | 6. seviyeden sonra rastgele (~%12) | En az harf sayısı bir fazla (kısa kelimeler yok), süre ×1.05, puan ×1.3 |
+| ⚡ Hızlı Tur | 3. seviyeden | Süre ×0.6, hedef %25 düşük, puan ×1.25 |
+| 🎯 Görev Turu | 3. seviyeden | Tahtaya göre 3 görev (ör. "5 harfli 3 kelime", "K geçen 4 kelime", "2 bonus kelime", "bir oyuncu ×3 seri", "büyük kelimeyi bul"). Tamamlanan her görev takıma ve tamamlayana hedefin %12'si kadar ödül puanı verir. Hedef %10 yüksek |
+| ⏳ Kum Saati | 4. seviyeden | Sürenin %45'iyle başlar; her kelime süre ekler (2 sn + uzunluğa göre, büyük kelime 6 sn, bonus 1 sn). Süre başlangıçtaki tam süreyi aşamaz. Hedef %10 düşük, puan ×1.2 |
+| 🔗 Zincir Turu | 4. seviyeden | Son bulunan kelimenin (tahta ya da bonus) son harfiyle başlayan kelime ×2 puan. Sıradaki harf ve zincir uzunluğu şeritte görünür. Hedef %15 yüksek |
+| 🌪️ Fırtına | 5. seviyeden | Harfler 3,5 saniyede bir, yazarken bile karışır. Hedef %5 düşük, puan ×1.25 |
+| 📏 Uzun Kelime Turu | 6. seviyeden | En az harf sayısı bir fazla (kısa kelimeler yok), süre ×1.05, puan ×1.3 |
+| 🎲 Zar Turu | 7. seviyeden | Taş çarpanları 15 saniyede bir yeniden atılır (iki taşa ×2/×3); bulunmamış kelimelerin değeri değişir. Puan ×1.1 |
+
+Altın ve patron dışındaki seviyeler 3–5. seviyelerde %40, sonrasında %50 olasılıkla özel türdür; tür, o seviyede açık olanlar arasından rastgele seçilir ve aynı özel tür art arda gelmez.
 | 💰 Altın Tur | Her 5. seviye | Bütün puanlar ×2 |
 | 👑 Patron Seviyesi | Her 10. seviye | Bir harf fazla, süre ×1.2, hedef %12 yüksek, puan ×1.5. Geçilirse +1 can (can sayısı sınırına kadar) |
 

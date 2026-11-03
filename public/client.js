@@ -378,9 +378,9 @@ function oyunCiz(durumDegisti) {
     taslariKur(lv);
   }
   ustBarCiz(lv, yeniLv);
+  bonusCiz(lv);
   tahtaCiz(lv);
   taslariGuncelle(lv);
-  bonusCiz(lv);
   skorCiz();
   ipucuCiz(lv);
   sonucCiz(durumDegisti);
@@ -501,6 +501,7 @@ function ustBarCiz(lv, yeniLv) {
 }
 
 let mobilOlcu = {};  // mobilde seviye başına sabitlenen kutu ölçüsü
+let masaustuOlcu = {}; // masaüstünde seviye + pencere boyutu başına sabitlenen kutu ölçüsü
 let tahtaLv = null;  // tahtada en son çizilen seviye
 function tahtaCiz(lv) {
   const tahta = $('tahta');
@@ -581,12 +582,19 @@ function tahtaCiz(lv) {
       mobilOlcu = { anahtar, kutu, kap: satirKapasite };
     }
   } else {
-    bul: for (let k = 62; k >= 20; k--) {
-      const enCok = Math.max(1, Math.floor((H - GRUP_DIKEY + SATIR_ARA) / (k + SATIR_ARA)));
-      for (let kap = enCok; kap >= 1; kap--) {
-        if (sigar(k, kap)) { kutu = k; satirKapasite = kap; break bul; }
+    // Masaüstü: ölçü seviye ve pencere boyutu başına bir kez hesaplanır; kelime/bonus
+    // bulunduğunda yapılan güncellemeler kutuları yeniden boyutlandırıp dizmez.
+    const anahtar = `${lv.kimlik}:${innerWidth}x${innerHeight}`;
+    if (masaustuOlcu.anahtar === anahtar) ({ kutu, kap: satirKapasite } = masaustuOlcu);
+    else {
+      bul: for (let k = 62; k >= 20; k--) {
+        const enCok = Math.max(1, Math.floor((H - GRUP_DIKEY + SATIR_ARA) / (k + SATIR_ARA)));
+        for (let kap = enCok; kap >= 1; kap--) {
+          if (sigar(k, kap)) { kutu = k; satirKapasite = kap; break bul; }
+        }
+        satirKapasite = Math.max(2, enCok);
       }
-      satirKapasite = Math.max(2, enCok);
+      masaustuOlcu = { anahtar, kutu, kap: satirKapasite };
     }
   }
   tahta.style.setProperty('--kutu', kutu + 'px');
@@ -925,19 +933,38 @@ $('silBtn').onclick = () => {
   odakla($('tahmin'));
 };
 
+// Bonus kelimeler tek satırlık, yüksekliği sabit bir şeritte gösterilir (en yenisi solda).
+// Şerit hiç büyümediği için bonus bulununca tahta yeniden boyutlanıp kaymaz;
+// sığmayan eski bonuslar baştaki sayaçta toplanır.
 function bonusCiz(lv) {
   const kap = $('bonusSatir');
   kap.innerHTML = '';
-  const liste = lv.bonus.slice(-24);
-  const bas = lv.bonus.length - liste.length; // listedeki ilk öğenin lv.bonus içindeki sırası
-  liste.forEach((b, k) => {
+  const toplam = lv.bonus.length;
+  const sayac = document.createElement('span');
+  sayac.className = 'sayac';
+  kap.appendChild(sayac);
+  if (!toplam) {
+    sayac.textContent = '✦ Bonus kelimeler burada görünür';
+    kap.classList.add('bos');
+    bonusSayisi = 0;
+    return;
+  }
+  kap.classList.remove('bos');
+  sayac.textContent = `✦ Bonus ${toplam}`;
+  const genislik = kap.clientWidth;
+  let gosterilen = 0;
+  for (let i = toplam - 1; i >= 0 && gosterilen < 24; i--) {
+    const b = lv.bonus[i];
     const s = document.createElement('span');
     s.className = 'b'; s.textContent = trBuyuk(b.w); s.title = `Bonus +${b.puan} — ${ad(b.bulan)}`;
     s.style.setProperty('--renk', renk(b.bulan));
-    if (bas + k >= bonusSayisi) s.classList.add('yeni'); // yalnızca yeni gelen çip canlansın
+    if (i >= bonusSayisi) s.classList.add('yeni'); // yalnızca yeni gelen çip canlansın
     kap.appendChild(s);
-  });
-  bonusSayisi = lv.bonus.length;
+    if (genislik && kap.scrollWidth > genislik) { s.remove(); break; } // şeride sığmadı
+    gosterilen++;
+  }
+  kap.title = gosterilen < toplam ? `${toplam - gosterilen} eski bonus kelime gizli` : '';
+  bonusSayisi = toplam;
 }
 
 function ipucuCiz(lv) {

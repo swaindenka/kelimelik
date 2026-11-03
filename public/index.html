@@ -85,6 +85,7 @@
               <li>Her harfin bir <b>puanı</b> var (taşın köşesinde). Nadir harf = çok puan. <b>×2 / ×3</b> taşlar o harfin puanını katlar.</li>
               <li>Kelime puanı = harf puanları × uzunluk çarpanı. Uzun kelime çok kazandırır, <b>büyük kelime ×2</b>.</li>
               <li>Süre bitmeden takımca <b>puan hedefine</b> ulaşın, yoksa can gider. Bonus kelimeler de hedefe sayılır.</li>
+              <li><b>⭐ Yıldız = seviye:</b> ★ ile 1, ★★ ile 2, ★★★ ile 3 seviye ilerlersiniz. <b>👑 Patron</b> seviyeleri atlanamaz, atlama orada durur.</li>
               <li><b>🗝️ Hazine kelime</b> tahtada parlar: ×2 puan ve takıma <b>+8 saniye</b>.</li>
               <li><b>⏱ Son hamle:</b> son 10 saniyede bulunan kelimeler ×1.5 puan.</li>
               <li>8 saniye içinde art arda bulursan <b>🔥 seri</b>: her adım kelime puanına +%10.</li>
@@ -119,6 +120,13 @@
               </select>
             </label>
           </div>
+          <label class="ilerleme-ayar">İlerleme
+            <select id="ayarIlerleme">
+              <option value="yildiz">⭐ Yıldız kadar seviye atla</option>
+              <option value="tek">Her geçişte 1 seviye</option>
+            </select>
+          </label>
+          <p id="ilerlemeAciklama" class="zorluk-aciklama"></p>
           <h3>Harf puanları</h3>
           <div class="harf-tablosu" aria-label="Harf puanları">
             <div><b>1</b><span>A E İ K L N R T</span></div>
@@ -157,6 +165,8 @@
       <button id="muzikBtn" class="btn ikon hayalet" title="Müziği aç/kapat">🎵</button>
       <button id="sesBtn" class="btn ikon hayalet" title="Sesi aç/kapat">🔊</button>
       <button id="menuBtn" class="btn ikon hayalet" title="Menü ve ayarlar">☰</button>
+      <!-- Kalan süre: üst barın altında boydan boya, sessiz oynayanlar için -->
+      <div id="zamanCubugu" class="zaman-cubugu" aria-hidden="true"><span id="zamanDolgu"></span></div>
     </header>
 
     <main class="oyun-govde">
@@ -212,8 +222,13 @@
 
     <div id="sonucKatman" class="katman gizli">
       <div class="kart sonuc-kart">
-        <div id="sonucBaslik" class="sonuc-baslik"></div>
-        <div id="sonucYildiz" class="sonuc-yildiz"></div>
+        <div id="sonucHero" class="sonuc-hero">
+          <div id="sonucAmblem" class="sh-amblem" aria-hidden="true"></div>
+          <div id="sonucUst" class="sh-ust"></div>
+          <div id="sonucBaslik" class="sonuc-baslik"></div>
+          <div id="sonucYildiz" class="sonuc-yildiz"></div>
+          <div id="sonucAtlama" class="sh-atlama gizli"></div>
+        </div>
         <div id="sonucDetay" class="sonuc-detay"></div>
         <div id="sonucBen" class="sonuc-ben"></div>
         <div id="sonucOdul" class="sonuc-odul"></div>
@@ -234,6 +249,7 @@
           <label>Efekt düzeyi <input type="range" id="sesDuzey" min="0" max="1" step="0.05"></label>
           <label class="yatay"><span>Müzik</span><input type="checkbox" id="muzikAcik"></label>
           <label>Müzik düzeyi <input type="range" id="muzikDuzey" min="0" max="1" step="0.05"></label>
+          <label class="yatay gizli" id="titresimSatir"><span>Titreşim (son saniyeler)</span><input type="checkbox" id="titresimAcik"></label>
         </div>
         <button id="menuLink" class="btn">🔗 Davet linkini kopyala</button>
         <button id="menuAtla" class="btn sahip-ozel">Seviyeyi bitir</button>
@@ -259,6 +275,24 @@
 
   <div id="afisler" class="afisler"></div>
   <div id="buyukSayac" class="buyuk-sayac" aria-hidden="true"></div>
+  <!-- Son 10 saniye: tahtanın üstünde yarı saydam büyük geri sayım -->
+  <div id="sonSayac" class="son-sayac" aria-hidden="true"></div>
+
+  <!-- Tur bitiş açılışı: sonuç kartından önce tam ekran -->
+  <div id="turSonu" class="tur-sonu gizli" role="status" aria-live="assertive">
+    <div class="ts-isinlar" aria-hidden="true"></div>
+    <div class="ts-icerik">
+      <div class="ts-amblem" aria-hidden="true">
+        <svg viewBox="0 0 120 120"><circle class="ts-halka-arka" cx="60" cy="60" r="52"/><circle class="ts-halka" cx="60" cy="60" r="52"/><path class="ts-isaret" d="" pathLength="100"/></svg>
+        <span class="ts-emoji"></span>
+      </div>
+      <div class="ts-ust"></div>
+      <h2 class="ts-baslik"></h2>
+      <div class="ts-alt"></div>
+      <div class="ts-rozetler"></div>
+      <small class="ts-gec">Sonuçlar için dokun</small>
+    </div>
+  </div>
   <div id="baglanti" class="baglanti gizli">Bağlantı koptu, yeniden bağlanılıyor…</div>
 
   <script src="/socket.io/socket.io.js"></script>

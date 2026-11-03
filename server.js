@@ -3,10 +3,10 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
-const { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, HARF_DEGER, HAZINE_CARPAN, ZORLUKLAR, TURLER } = require('./game');
+const { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, harfDegeri, DILLER, HAZINE_CARPAN, ZORLUKLAR, TURLER } = require('./game');
 
 const PORT = process.env.PORT || 3000;
-const SONUC_SURESI = 10000;  // seviye sonu ekranı (ms)
+const SONUC_SURESI = 16000;  // seviye sonu ekranı (ms) — tahtaya bakmaya zaman kalsın; herkes hazırsa erken başlar
 const HAZINE_SURE = 8000;    // hazine kelimeyi bulmak takıma bu kadar süre kazandırır (ms)
 const SON_HAMLE_MS = 10000;  // son 10 saniye: "son hamle"
 const SON_HAMLE_CARPAN = 1.5; // son hamlede bulunan kelimelerin puan çarpanı
@@ -44,7 +44,9 @@ function yeniOda(sahipId) {
     kod: odaKoduUret(),
     sahip: sahipId,
     oyuncular: new Map(),
-    ayar: { sure: 100, can: 3, zorluk: 'normal', ilerleme: 'yildiz' }, // ilerleme: 'yildiz' (yıldız kadar seviye) | 'tek'
+    // ilerleme: 'yildiz' (yıldız kadar seviye) | 'tek' · dil: kelimelerin dili ('tr' | 'en')
+    ayar: { sure: 100, can: 3, zorluk: 'normal', ilerleme: 'yildiz', dil: 'tr' },
+    hazir: new Set(), // seviye arasında "hazırım" diyenler
     durum: 'lobi', // lobi | oyun | sonuc | bitti
     seviye: 1,
     can: 3,
@@ -102,16 +104,18 @@ function genelDurum(oda) {
     simdi: Date.now(),
     bitis: oda.bitis,
     sonSonuc: oda.sonSonuc,
+    hazir: [...oda.hazir],
   };
   if (lv) {
     const gizliGoster = oda.durum !== 'oyun';
     d.lv = {
       kimlik: lv.kimlik,
+      dil: lv.dil,
       harfler: lv.harfler.map((h) => {
         const kapali = h.gizli && !lv.gizliAcik && !gizliGoster;
         return {
           ch: kapali ? '?' : h.ch,
-          d: kapali ? null : HARF_DEGER[h.ch] || 1, // harf puanı
+          d: kapali ? null : harfDegeri(lv.dil, h.ch), // harf puanı
           x: h.carpan || 1,                          // taş çarpanı
           gizli: h.gizli,
           sahte: h.sahte && (lv.sahteAcik || gizliGoster),
@@ -173,7 +177,8 @@ function sureUzat(oda, ms) {
 function seviyeBaslat(oda) {
   zamanlayiciTemizle(oda);
   // Sonuç ekranında önceden duyurulan seviye türü kullanılır (yoksa yeni seçilir)
-  oda.lv = seviyeUret(oda.seviye, oda.ayar.zorluk, oda.sonrakiTur || undefined);
+  oda.hazir.clear();
+  oda.lv = seviyeUret(oda.seviye, oda.ayar.zorluk, oda.sonrakiTur || undefined, oda.ayar.dil);
   oda.sonrakiTur = null;
   oda.lv.kimlik = ++oda.lvSayac;
   oda.lv.ipucuKalan = IPUCU_HAKKI;
@@ -228,6 +233,7 @@ function seviyeBitir(oda, neden = 'sure') {
   const sirali = [...oda.oyuncular.values()].filter((p) => p.seviyePuan > 0).sort((a, b) => b.seviyePuan - a.seviyePuan);
   oda.sonSonuc = {
     seviye: oda.seviye,
+    dil: lv.dil,
     neden,
     gecti,
     yildiz: yld,
@@ -331,11 +337,19 @@ function ayrilanlariTemizle(oda) {
 
 function lobiyeDon(oda) {
   zamanlayiciTemizle(oda);
+  oda.hazir.clear();
   ayrilanlariTemizle(oda);
   oda.durum = 'lobi';
   oda.lv = null;
   oda.sonSonuc = null;
   yayinla(oda);
+}
+
+function hazirKontrol(oda) {
+  if (oda.durum !== 'sonuc') return;
+  const bagli = [...oda.oyuncular.values()].filter((p) => p.bagli);
+  if (bagli.length && bagli.every((p) => oda.hazir.has(p.id))) seviyeBaslat(oda);
+  else yayinla(oda);
 }
 
 function sahipAktar(oda) {
@@ -408,6 +422,8 @@ io.on('connection', (socket) => {
     if ([0, 1, 3, 5].includes(can)) oda.ayar.can = can;
     if (a && Object.hasOwn(ZORLUKLAR, a.zorluk)) oda.ayar.zorluk = a.zorluk;
     if (a && ['yildiz', 'tek'].includes(a.ilerleme)) oda.ayar.ilerleme = a.ilerleme;
+    // Dil yalnızca oyun dışındayken değişir (seviyeler arasında değişip oyunun ortasında dil değişmesin)
+    if (a && Object.hasOwn(DILLER, a.dil) && (oda.durum === 'lobi' || oda.durum === 'bitti')) oda.ayar.dil = a.dil;
     yayinla(oda);
   });
 
@@ -415,6 +431,12 @@ io.on('connection', (socket) => {
   socket.on('baslat', () => { if (sahipMi() && (oda.durum === 'lobi' || oda.durum === 'bitti')) oyunuBaslat(oda); });
   socket.on('lobi', () => { if (sahipMi()) lobiyeDon(oda); });
   socket.on('atla', () => { if (sahipMi() && oda.durum === 'oyun') seviyeBitir(oda, 'atla'); });
+  // Seviye arası: bağlı herkes "hazırım" derse sonraki seviye beklemeden başlar
+  socket.on('hazir', () => {
+    if (!oda || !oyuncu || oda.durum !== 'sonuc') return;
+    oda.hazir.add(oyuncu.id);
+    hazirKontrol(oda);
+  });
 
   socket.on('sohbet', (metin) => {
     if (!oda || !oyuncu || !sohbetSiniri()) return;
@@ -550,6 +572,8 @@ io.on('connection', (socket) => {
     sohbetEkle(o, { tur: 'sistem', olay: 'ayrildi', metin: `${p.isim} odadan ayrıldı` });
     sahipAktar(o);
     if (![...o.oyuncular.values()].some((x) => x.bagli)) o.bosSince = Date.now();
+    o.hazir.delete(p.id);
+    if (o.durum === 'sonuc' && o.hazir.size) return hazirKontrol(o);
     yayinla(o);
   });
 
@@ -558,6 +582,7 @@ io.on('connection', (socket) => {
     oyuncu.bagli = false;
     sahipAktar(oda);
     if (![...oda.oyuncular.values()].some((p) => p.bagli)) oda.bosSince = Date.now();
+    if (oda.durum === 'sonuc' && oda.hazir.size) return hazirKontrol(oda);
     yayinla(oda);
   });
 });

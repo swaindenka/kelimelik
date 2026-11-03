@@ -2,8 +2,12 @@
 const $ = (id) => document.getElementById(id);
 const socket = io({ autoConnect: true });
 
-const trBuyuk = (s) => String(s).toLocaleUpperCase('tr-TR');
-const trKucuk = (s) => String(s).replace(/I/g, 'ı').replace(/İ/g, 'i').toLocaleLowerCase('tr-TR');
+// Kelimelerin dili (Türkçe/İngilizce) büyük-küçük harf kuralını belirler: Türkçede i ↔ İ, İngilizcede i ↔ I
+const oyunDili = () => D?.lv?.dil || D?.ayar?.dil || 'tr';
+const trBuyuk = (s) => (oyunDili() === 'en' ? String(s).toUpperCase() : String(s).toLocaleUpperCase('tr-TR'));
+const trKucuk = (s) => (oyunDili() === 'en'
+  ? String(s).replace(/[İı]/g, 'i').toLowerCase()
+  : String(s).replace(/I/g, 'ı').replace(/İ/g, 'i').toLocaleLowerCase('tr-TR'));
 const kaydet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const oku = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const dokunmatik = matchMedia('(pointer: coarse)').matches;
@@ -189,6 +193,7 @@ function afisSonraki() {
   const a = afisKuyruk.shift();
   if (!a) { afisMesgul = false; return; }
   afisMesgul = true;
+  alanOlcu();
   const sure = afisKuyruk.length ? 1500 : 2300; // sırada bekleyen varsa kısa göster
   const el = document.createElement('div');
   el.className = 'afis ' + a.tur;
@@ -212,8 +217,12 @@ const sonHamleMi = () => D?.durum === 'oyun' && D.lv && D.bitis - simdi() > 0 &&
 
 // ---------- Rekorlar (bu tarayıcıda, zorluğa göre) ----------
 function rekorlar() { try { return JSON.parse(oku('ka_rekor') || '{}') || {}; } catch { return {}; } }
+// Türkçe rekorlar eski anahtarlarıyla ("normal"), İngilizceler "en:normal" olarak saklanır
+const rekorAnahtar = (zorluk, dil = oyunDili()) => (dil === 'en' ? 'en:' : '') + zorluk;
+const rekorBul = (zorluk, dil) => rekorlar()[rekorAnahtar(zorluk, dil)];
 function rekorGuncelle(zorluk, seviye, puan) {
   const hepsi = rekorlar();
+  zorluk = rekorAnahtar(zorluk);
   const e = hepsi[zorluk] || { seviye: 0, puan: 0 };
   if (seviye > e.seviye) e.seviye = seviye;
   if (puan > e.puan) e.puan = puan;
@@ -227,6 +236,8 @@ socket.on('durum', (d) => {
   saatFarki = d.simdi - Date.now();
   const onceki = D;
   D = d;
+  const dilKod = oyunDili();
+  if ($('tahmin').lang !== dilKod) $('tahmin').lang = dilKod;
   // Oyuncu adları/renkleri değiştiyse geçmiş listeleri yeniden çiz (animasyonsuz)
   const imza = d.oyuncular.map((p) => `${p.id}:${p.isim}:${p.renk}`).join('|');
   if (imza !== oyuncuImza) { oyuncuImza = imza; akisCiz(); sohbetCiz(); }
@@ -246,7 +257,7 @@ function gecisleriIsle(o, d) {
   // Yeni oyun başladı (ya da oyuna sonradan girildi): rekor karşılaştırması bu andaki rekora göre
   if (d.durum === 'oyun' && (!o || o.durum === 'lobi' || o.durum === 'bitti')) {
     rekorDuyuruldu = false;
-    oyunBasiRekor = rekorlar()[lv.zorluk]?.seviye || 0;
+    oyunBasiRekor = rekorBul(lv.zorluk, lv.dil)?.seviye || 0;
   }
   // Yeni seviye başladı
   if (d.durum === 'oyun' && o && (o.durum !== 'oyun' || o.lv?.kimlik !== lv.kimlik)) {
@@ -352,10 +363,17 @@ function lobiCiz() {
     b.setAttribute('aria-checked', b.dataset.zorluk === z);
   }
   $('zorlukSecim').dataset.secili = z;
+  const dil = D.ayar.dil || 'tr';
+  for (const b of $('dilSecim').children) {
+    b.classList.toggle('secili', b.dataset.dil === dil);
+    b.disabled = !sahibim();
+    b.setAttribute('aria-checked', b.dataset.dil === dil);
+  }
+  harfTablosuCiz(dil);
   $('zorlukAciklama').textContent = ZORLUK_ACIKLAMA[z];
-  const rk = rekorlar()[z];
+  const rk = rekorBul(z, D.ayar.dil);
   $('rekorSatir').classList.toggle('gizli', !rk || !(rk.seviye || rk.puan));
-  if (rk) $('rekorSatir').textContent = `🏆 Rekorun (${ZORLUK_AD[z]}): Seviye ${rk.seviye || 0} · ${rk.puan || 0} puan`;
+  if (rk) $('rekorSatir').textContent = `🏆 Rekorun (${ZORLUK_AD[z]}${dil === 'en' ? ' · English' : ''}): Seviye ${rk.seviye || 0} · ${rk.puan || 0} puan`;
   $('baslat').classList.toggle('gizli', !sahibim());
   $('bekle').classList.toggle('gizli', sahibim());
 }
@@ -370,6 +388,29 @@ const ZORLUK_ACIKLAMA = {
   uzman: 'Süre ×0.75 · hedef %30 yüksek · hızla 8+ harfe çıkar, tuzaklar hemen · puan ×1.5',
 };
 const ZORLUK_AD = { kolay: '🌱 Kolay', normal: '⚔️ Normal', zor: '🔥 Zor', uzman: '💀 Uzman' };
+// Lobideki harf puanı tablosu (sunucudaki game.js ile aynı değerler)
+const HARF_TABLOSU = {
+  tr: [[1, 'A E İ K L N R T'], [2, 'I M O S U'], [3, 'B D Ü Y'], [4, 'C Ç Ş Z'], [5, 'G H P'], [7, 'F Ö V'], [8, 'Ğ'], [10, 'J']],
+  en: [[1, 'A E I L N O R S T U'], [2, 'D G'], [3, 'B C M P'], [4, 'F H V W Y'], [5, 'K'], [8, 'J X'], [10, 'Q Z']],
+};
+let cizilenTablo = null;
+function harfTablosuCiz(dil) {
+  if (cizilenTablo === dil) return;
+  cizilenTablo = dil;
+  const kap = $('harfTablosu');
+  kap.innerHTML = '';
+  for (const [puan, harfler] of HARF_TABLOSU[dil] || HARF_TABLOSU.tr) {
+    const d = document.createElement('div');
+    if (puan >= 7) d.className = 'nadir';
+    const b = document.createElement('b'); b.textContent = puan;
+    const sp = document.createElement('span'); sp.textContent = harfler;
+    d.append(b, sp);
+    kap.appendChild(d);
+  }
+}
+for (const b of $('dilSecim').children) {
+  b.onclick = () => { if (sahibim()) { socket.emit('ayar', { dil: b.dataset.dil }); Ses.cal('tikla'); } };
+}
 for (const b of $('zorlukSecim').children) {
   b.onclick = () => { if (sahibim()) { socket.emit('ayar', { zorluk: b.dataset.zorluk }); Ses.cal('tikla'); } };
 }
@@ -395,6 +436,7 @@ function oyunCiz(durumDegisti) {
   ustBarCiz(lv, yeniLv);
   bonusCiz(lv);
   tahtaCiz(lv);
+  alanOlcu();
   taslariGuncelle(lv);
   skorCiz();
   ipucuCiz(lv);
@@ -404,7 +446,7 @@ function oyunCiz(durumDegisti) {
   $('menuAtla').classList.toggle('gizli', !sahibim() || D.durum !== 'oyun');
   const oynaniyor = D.durum === 'oyun';
   $('sahne').classList.toggle('bekliyor', !oynaniyor);
-  $('tahmin').placeholder = oynaniyor ? "Kelimeyi yaz, Enter'a bas…" : 'Sonraki seviye bekleniyor…';
+  $('tahmin').placeholder = !oynaniyor ? 'Sonraki seviye bekleniyor…' : lv.dil === 'en' ? "İngilizce kelime yaz, Enter'a bas…" : "Kelimeyi yaz, Enter'a bas…";
 }
 
 // Takım puanı sayacı: uçan puanlar vardıktan sonra yeni değere doğru sayar
@@ -1248,6 +1290,7 @@ function sonucCiz(durumDegisti) {
   if (durumDegisti) sonucKatmani(true);
   else sonucKatmani(!$('sonucKatman').classList.contains('gizli'));
   const bitti = r.oyunBitti;
+  if (bitti) $('sonucAcBtn').textContent = 'Sonuçları göster';
   const m = sonucMetinleri(r);
   $('sonucHero').dataset.sonuc = m.tur;
   $('sonucAmblem').textContent = m.amblem;
@@ -1285,7 +1328,7 @@ function sonucCiz(durumDegisti) {
     if (ben.enIyi) parca.push(`en iyisi ${trBuyuk(ben.enIyi.w)} +${ben.enIyi.puan}`);
     if (ben.enSeri >= 2) parca.push(`en uzun seri 🔥${ben.enSeri}`);
     parca.push(`${ben.puan} puan`);
-    const rk = rekorlar()[r.zorluk];
+    const rk = rekorBul(r.zorluk, r.dil);
     $('sonucBen').textContent = `Senin oyunun: ${parca.join(' · ')}${rk?.seviye ? ` · rekorun: seviye ${rk.seviye}` : ''}`;
   } else {
     $('sonucBen').textContent = ben ? `Sen: ${benimKelime} kelime · ${ben.seviyePuan >= 0 ? '+' : ''}${ben.seviyePuan} puan · toplam ${ben.puan}` : '';
@@ -1373,6 +1416,18 @@ function sonucCiz(durumDegisti) {
       const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = 'Lobiye dön'; b2.onclick = () => socket.emit('lobi');
       btn.append(b1, b2);
     } else $('sonucAlt').textContent += ' Oda sahibi yeni oyunu başlatabilir.';
+  }
+  if (!bitti && D.durum === 'sonuc') {
+    // Herkes hazırsa sonraki seviye 16 sn'yi beklemeden başlar
+    const bagli = D.oyuncular.filter((p) => p.bagli);
+    const hazir = (D.hazir || []).filter((id) => bagli.some((p) => p.id === id));
+    const ben = hazir.includes(benimId);
+    const h = document.createElement('button');
+    h.className = 'btn ana hazir-btn' + (ben ? ' hazir' : '');
+    h.disabled = ben;
+    h.textContent = bagli.length <= 1 ? 'Hemen başla ▶' : ben ? `Hazırsın ✓ (${hazir.length}/${bagli.length})` : `Hazırım ▶ (${hazir.length}/${bagli.length})`;
+    h.onclick = () => { socket.emit('hazir'); Ses.cal('tikla'); };
+    btn.append(h);
   }
   const kapat = document.createElement('button'); kapat.className = 'btn hayalet'; kapat.textContent = 'Tahtayı gör';
   kapat.onclick = () => sonucKatmani(false);
@@ -1522,6 +1577,7 @@ $('lobiAyril').onclick = odadanAyril;
 // Son 10 saniye: yarı saydam büyük geri sayım (ses kapalıyken de süre fark edilsin)
 function sonSayac(n) {
   const el = $('sonSayac');
+  alanOlcu();
   el.textContent = n;
   el.classList.toggle('kritik', n <= 3);
   yenidenOynat(el, 'goster');
@@ -1530,6 +1586,7 @@ function sonSayac(n) {
 // Seviyeler arası büyük geri sayım
 function buyukSayac(n) {
   const el = $('buyukSayac');
+  alanOlcu();
   el.textContent = n;
   yenidenOynat(el, 'goster');
 }
@@ -1604,12 +1661,27 @@ setInterval(() => {
       $('sureHalka').style.strokeDashoffset = 0;
       if (!D.sonSonuc?.oyunBitti) {
         $('sonucAlt').textContent = sn > 0 ? `Sonraki seviye ${sn} sn içinde başlıyor…` : 'Başlıyor…';
+        $('sonucAcBtn').textContent = sn > 0 ? `Sonuçları göster · ${sn} sn` : 'Başlıyor…';
         if (sonSaniye !== null && sn !== sonSaniye && sn <= 3 && sn > 0) { Ses.cal('geriSayim'); buyukSayac(sn); }
       }
     }
   }
   sonSaniye = sn;
 }, 100);
+
+// ---------- Oyun alanı ölçüsü ----------
+// Afişler ve geri sayımlar ekranın değil kelime tahtasının ortasına ve boyutuna göre yerleşir
+// (harfleri ve yazma alanını kapatmasınlar). Ölçüler CSS değişkeni olarak verilir.
+function alanOlcu() {
+  if (!$('oyun').classList.contains('aktif')) return;
+  const t = $('tahta').getBoundingClientRect();
+  if (!t.width || !t.height) return;
+  const k = document.documentElement.style;
+  k.setProperty('--tahta-x', Math.round(t.left + t.width / 2) + 'px');
+  k.setProperty('--tahta-y', Math.round(t.top + t.height / 2) + 'px');
+  k.setProperty('--tahta-w', Math.round(t.width) + 'px');
+  k.setProperty('--tahta-h', Math.round(t.height) + 'px');
+}
 
 // ---------- Mobil düzen: görünür alan ve klavye ----------
 // Mobilde oyun ekranı görünür alana (visualViewport) sabitlenir; sayfa kaymaz, yalnızca
@@ -1643,12 +1715,14 @@ function gorunumGuncelle() {
     document.body.classList.toggle('klavye', yeni);
     // Kelime yazmaya başlarken harfler ve tahta görünsün (bir kez; sürekli kaydırma yapılmaz)
     if (yeni && document.activeElement === $('tahmin')) document.querySelector('.oyun-govde').scrollTop = 0;
+    requestAnimationFrame(alanOlcu); // sıkışık düzende tahtanın yeri değişir
   }
 }
 
 let cizimGenislik = innerWidth;
 function boyutDegisti() {
   gorunumGuncelle();
+  requestAnimationFrame(alanOlcu);
   if (!D?.lv || D.durum === 'lobi') return;
   // Mobilde yalnızca yükseklik değiştiyse (klavye, adres çubuğu) tahta yeniden çizilmez
   if (mobilMq.matches && innerWidth === cizimGenislik) return;

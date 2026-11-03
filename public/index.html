@@ -82,6 +82,7 @@
             <summary>Nasıl oynanır?</summary>
             <ul>
               <li>Harflerle kelime yaz, <b>Enter</b>'a bas ya da taşlara tıkla. <b>↑</b> son tahmini geri getirir.</li>
+              <li><b>Dil:</b> Türkçe ya da İngilizce kelimelerle oynayabilirsiniz (oda sahibi seçer). Harf puanları dile göre değişir.</li>
               <li>Her harfin bir <b>puanı</b> var (taşın köşesinde). Nadir harf = çok puan. <b>×2 / ×3</b> taşlar o harfin puanını katlar.</li>
               <li>Kelime puanı = harf puanları × uzunluk çarpanı. Uzun kelime çok kazandırır, <b>büyük kelime ×2</b>.</li>
               <li>Süre bitmeden takımca <b>puan hedefine</b> ulaşın, yoksa can gider. Bonus kelimeler de hedefe sayılır.</li>
@@ -99,6 +100,10 @@
         </div>
         <div>
           <h3>Ayarlar</h3>
+          <div class="dil-secim" id="dilSecim" role="radiogroup" aria-label="Kelime dili">
+            <button type="button" data-dil="tr"><b>TR</b><span>Türkçe kelimeler</span></button>
+            <button type="button" data-dil="en"><b>EN</b><span>English words</span></button>
+          </div>
           <div class="zorluk-secim" id="zorlukSecim" role="radiogroup" aria-label="Zorluk">
             <button type="button" data-zorluk="kolay"><b>🌱</b><span>Kolay</span></button>
             <button type="button" data-zorluk="normal"><b>⚔️</b><span>Normal</span></button>
@@ -128,16 +133,7 @@
           </label>
           <p id="ilerlemeAciklama" class="zorluk-aciklama"></p>
           <h3>Harf puanları</h3>
-          <div class="harf-tablosu" aria-label="Harf puanları">
-            <div><b>1</b><span>A E İ K L N R T</span></div>
-            <div><b>2</b><span>I M O S U</span></div>
-            <div><b>3</b><span>B D Ü Y</span></div>
-            <div><b>4</b><span>C Ç Ş Z</span></div>
-            <div><b>5</b><span>G H P</span></div>
-            <div class="nadir"><b>7</b><span>F Ö V</span></div>
-            <div class="nadir"><b>8</b><span>Ğ</span></div>
-            <div class="nadir"><b>10</b><span>J</span></div>
-          </div>
+          <div class="harf-tablosu" id="harfTablosu" aria-label="Harf puanları"></div>
         </div>
       </div>
       <button id="baslat" class="btn ana genis">Oyunu başlat</button>

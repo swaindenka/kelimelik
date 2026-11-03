@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 
-const PUAN_HEDEF_YUMUSATMA = 0.75;
+const PUAN_HEDEF_YUMUSATMA = 0.8;
 const HAZINE_CARPAN = 2; // hazine kelimenin puan çarpanı
 
 function trKucuk(s) {
@@ -151,16 +151,17 @@ function seviyeTuru(seviye, onceki = null) {
 
 // Buzlu taş seçimi: buz, tahtaya göre adil olmalı. Her aday harf için buz çözülmeden
 // yazılabilen (serbest) ve buz yüzünden kilitlenen (engel) tahta kelimeleri sayılır.
-// Önce "en az 4 serbest, en az 2 engel" olan, olmazsa "en az 3 serbest, en az 1 engel"
-// olan harfler arasından seçilir; hiçbiri yoksa o seviyede buz çıkmaz.
+// Önce "en az 5 serbest, en az 2 engel" olan, olmazsa "en az 4 serbest, en az 1 engel"
+// olan harfler arasından seçilir; hiçbiri yoksa o seviyede buz çıkmaz. (En az 4 serbest
+// kelime şart: buzu kırmak için en az 2 kelime istenir ve bu, serbest kelimelerin yarısını geçmemeli.)
 function buzSec(harfler, tahta, harfSayaci) {
   const adaylar = [...new Set(harfler.filter((h) => !h.gizli && !h.bomba && !h.sahte).map((h) => h.ch))].map((ch) => {
     const kalan = { ...harfSayaci, [ch]: harfSayaci[ch] - 1 };
     const serbest = tahta.filter((s) => sigarMi(sayac(s.w), kalan)).length;
     return { ch, serbest, engel: tahta.length - serbest };
   });
-  const uygun = adaylar.filter((a) => a.serbest >= 4 && a.engel >= 2);
-  const yedek = adaylar.filter((a) => a.serbest >= 3 && a.engel >= 1);
+  const uygun = adaylar.filter((a) => a.serbest >= 5 && a.engel >= 2);
+  const yedek = adaylar.filter((a) => a.serbest >= 4 && a.engel >= 1);
   const havuz = uygun.length ? uygun : yedek;
   if (!havuz.length) return null;
   const secim = havuz[Math.floor(Math.random() * havuz.length)];
@@ -177,9 +178,42 @@ function buzluKelime(lv, w) {
 }
 
 // Buzu kırmak için gereken kelime: buz çözülmeden yazılabilen kelime sayısına göre
-// yaklaşık her 7 serbest kelimeye 1 (en az 1, en çok 3) ve hiçbir zaman serbest kelimelerin yarısından fazla değil
+// yaklaşık her 5 serbest kelimeye 1; en az 2, en çok 4 ve hiçbir zaman serbest kelimelerin yarısından fazla değil
 function buzEsigi(serbest) {
-  return Math.max(1, Math.min(3, Math.round(serbest / 7), Math.floor(serbest / 2)));
+  return Math.max(2, Math.min(4, Math.round(serbest / 5), Math.floor(serbest / 2)));
+}
+
+// Taşa muhtaç kelimeler: o taş olmadan yazılamayan tahta kelimeleri
+function muhtacSay(tahta, harfSayaci, ch) {
+  const kalan = { ...harfSayaci, [ch]: harfSayaci[ch] - 1 };
+  return tahta.filter((s) => !sigarMi(sayac(s.w), kalan)).length;
+}
+
+// Gizli harf: harf açılana kadar tahtanın çoğu yazılamaz olmasın diye, kelimelerin %70'inden
+// fazlasının muhtaç olduğu harfler gizlenmez (uygun harf yoksa rastgele bir taş)
+function gizliSec(harfler, tahta, harfSayaci) {
+  const uygun = harfler.filter((h) => muhtacSay(tahta, harfSayaci, h.ch) <= tahta.length * 0.7);
+  const havuz = uygun.length ? uygun : harfler;
+  return havuz[Math.floor(Math.random() * havuz.length)];
+}
+
+// Bomba harf: harfi içeren kelime ne çok az (imha edilemez) ne çok fazla (ilk kelime imha eder) olsun.
+// Önce tahtanın %12–50'sinde geçen, olmazsa %65'e kadar geçen harfler; buz olmadan en az 2 tanesi
+// yazılabilmeli. Uygun harf yoksa o seviyede bomba çıkmaz.
+function bombaSec(harfler, tahta, harfSayaci) {
+  const buzlu = harfler.find((h) => h.buz);
+  const kullanilir = buzlu ? { ...harfSayaci, [buzlu.ch]: harfSayaci[buzlu.ch] - 1 } : harfSayaci;
+  const taslar = harfler.filter((h) => !h.gizli && !h.buz && !h.sahte);
+  const adaylar = [...new Set(taslar.map((h) => h.ch))].map((ch) => {
+    const icerir = tahta.filter((s) => s.w.includes(ch));
+    return { ch, oran: icerir.length / tahta.length, yazilir: icerir.filter((s) => sigarMi(sayac(s.w), kullanilir)).length };
+  }).filter((a) => a.yazilir >= 2);
+  const uygun = adaylar.filter((a) => a.oran >= 0.12 && a.oran <= 0.5);
+  const yedek = adaylar.filter((a) => a.oran <= 0.65);
+  const havuz = uygun.length ? uygun : yedek;
+  if (!havuz.length) return null;
+  const ch = havuz[Math.floor(Math.random() * havuz.length)].ch;
+  return taslar.filter((h) => h.ch === ch).sort((a, b) => a.carpan - b.carpan)[0];
 }
 
 // Zar turu: çarpanları sil, uygun taşlardan ikisine yeniden ×2 / ×3 ver; bulunmamış kelimelerin
@@ -222,9 +256,10 @@ function seviyeAyari(seviye, zorluk = ZORLUKLAR.normal, tur = TURLER.normal, kal
   const e = Math.max(1, seviye + zorluk.kayma); // özellikler için etkin seviye
   const uzunluk = Math.min(10, (e <= 2 ? 6 : e <= 5 ? 7 : e <= 9 ? 8 : e <= 14 ? 9 : 10) + tur.uzunluk);
   const minHarf = (seviye < zorluk.minHarfSeviye ? 3 : 4) + (tur.minEk || 0);
-  const oran = Math.min(Math.min(0.3 + 0.025 * (seviye - 1), 0.65) * zorluk.oran * tur.oran, 0.8);
-  const gizli = e >= 12 || (e >= 4 && e % 2 === 0);
-  const sahte = e >= 13 || (e >= 7 && Math.random() < 0.5);
+  const oran = Math.min(Math.min(0.33 + 0.027 * (seviye - 1), 0.7) * zorluk.oran * tur.oran, 0.8);
+  // Gizli harf: 4. etkin seviyeden %50, 12'den sonra %75. Sahte harf: 7'den %45, 13'ten sonra %70.
+  const gizli = e >= 4 && Math.random() < (e >= 12 ? 0.75 : 0.5);
+  const sahte = e >= 7 && Math.random() < (e >= 13 ? 0.7 : 0.45);
   // Yeni tuzaklar: buzlu harf (5. etkin seviyeden), bomba harf (8. etkin seviyeden)
   const buz = e >= 5 && Math.random() < 0.35;
   const bomba = e >= 8 && Math.random() < 0.3;
@@ -280,13 +315,13 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd, dilKod = 'tr', secenek =
   karistir(harfler.map((_, i) => i)).slice(0, ozelSay).forEach((i, k) => {
     harfler[i].carpan = k === 1 && Math.random() < 0.4 ? 3 : 2;
   });
-  if (ayar.gizli) harfler[Math.floor(Math.random() * harfler.length)].gizli = true;
+  if (ayar.gizli) gizliSec(harfler, tahta, tohum.c).gizli = true;
   // Buzlu harf: takım birkaç kelime bulana kadar kullanılamaz. Bomba harf: fitili yanar,
   // o harfi içeren bir kelime bulunmazsa patlar (süre sunucuda kurulur). İkisi de gizli harf olmaz.
-  const bosta = () => karistir(harfler.filter((h) => !h.gizli && !h.buz && !h.bomba));
   const buz = ayar.buz ? buzSec(harfler, tahta, tohum.c) : null;
   if (buz) buz.tas.buz = true;
-  if (ayar.bomba) bosta()[0].bomba = true;
+  const bomba = ayar.bomba ? bombaSec(harfler, tahta, tohum.c) : null;
+  if (bomba) bomba.bomba = true;
   if (ayar.sahte) {
     // Kelimede olmayan, rastgele bir harf ekle — çoğu zaman cazip, yüksek puanlı bir harf
     const yok = [...dil.alfabe].filter((ch) => !tohum.c[ch]);

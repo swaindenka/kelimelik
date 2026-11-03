@@ -500,6 +500,8 @@ function ustBarCiz(lv, yeniLv) {
   oncekiCan = D.can;
 }
 
+let mobilOlcu = {};  // mobilde seviye başına sabitlenen kutu ölçüsü
+let tahtaLv = null;  // tahtada en son çizilen seviye
 function tahtaCiz(lv) {
   const tahta = $('tahta');
   const dar = innerWidth < 860;
@@ -507,9 +509,11 @@ function tahtaCiz(lv) {
   lv.tahta.forEach((s, i) => (gruplar[s.n] ||= []).push([s, i]));
   const uzunluklar = Object.keys(gruplar).map(Number).sort((a, b) => a - b);
   // Ölçüler style.css ile aynı olmalı (.tahta, .grup, .sutun, .slot)
-  const HARF_ARA = 3, SATIR_ARA = 7, SUTUN_ICI = 16;          // slot içi, satır, grup içi sütun aralığı
-  const GRUP_YATAY = 24, GRUP_DIKEY = 58, GRUP_MIN = 108;     // grup kartının iç boşlukları + başlık + kenarlık
-  const ARA_X = 18, ARA_Y = 16;                               // gruplar arası
+  // Mobilde .grup / .grup-govde daha sıkışık (style.css'teki @media ile aynı)
+  const HARF_ARA = 3, SATIR_ARA = 7, SUTUN_ICI = dar ? 10 : 16;  // slot içi, satır, grup içi sütun aralığı
+  const GRUP_YATAY = dar ? 18 : 24, GRUP_DIKEY = dar ? 47 : 58;   // grup kartının iç boşlukları + başlık + kenarlık
+  const GRUP_MIN = 108;
+  const ARA_X = dar ? 8 : 18, ARA_Y = dar ? 8 : 16;          // gruplar arası (mobilde .tahta gap'i daha küçük)
   const cs = getComputedStyle(tahta);
   const W = (tahta.clientWidth || 800) - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 4;
   const H = (tahta.clientHeight || 400) - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 4;
@@ -524,23 +528,58 @@ function tahtaCiz(lv) {
     return [w, h];
   };
   // Kartlar flex-wrap ile alt satıra geçer: hepsi alana sığıyor mu?
-  const sigar = (k, kap) => {
+  // Kartların flex-wrap ile dizildiğindeki toplam yükseklik (genişliğe sığmıyorsa Infinity)
+  const toplamYukseklik = (k, kap) => {
     let toplamH = 0, satirW = 0, satirH = 0;
     for (const uz of uzunluklar) {
       const [w, h] = grupOlcu(uz, k, kap);
-      if (w > W) return false;
+      if (w > W) return Infinity;
       if (satirW && satirW + ARA_X + w > W) { toplamH += satirH + ARA_Y; satirW = 0; satirH = 0; }
       satirW += (satirW ? ARA_X : 0) + w;
       satirH = Math.max(satirH, h);
     }
-    return toplamH + satirH <= H;
+    return toplamH + satirH;
   };
+  const sigar = (k, kap, yukseklik = H) => toplamYukseklik(k, kap) <= yukseklik;
 
   let kutu = 22, satirKapasite = 5;
   if (dar) {
-    const enUzun = Math.max(...uzunluklar);
-    kutu = Math.max(20, Math.min(38, Math.floor((W - GRUP_YATAY - HARF_ARA * (enUzun - 1)) / enUzun)));
-    satirKapasite = 5;
+    // Mobil: kutu boyu seviye (ve ekran genişliği) başına bir kez hesaplanır; klavye açılıp
+    // kapanınca ya da her güncellemede tahta yeniden boyutlanıp zıplamasın.
+    const anahtar = `${lv.kimlik}:${innerWidth}`;
+    if (mobilOlcu.anahtar === anahtar) ({ kutu, kap: satirKapasite } = mobilOlcu);
+    else {
+      const Hs = H + klavyePayi(); // klavye açıkken ölçüldüyse kapalı hâline göre hesapla
+      const enUzun = Math.max(...uzunluklar);
+      const enCokAdet = Math.max(...uzunluklar.map((u) => gruplar[u].length));
+      const genislikSiniri = Math.floor((W - GRUP_YATAY - HARF_ARA * (enUzun - 1)) / enUzun);
+      let bulundu = false;
+      bul: for (let k = Math.min(30, genislikSiniri); k >= 18; k--) {
+        const enCok = Math.max(1, Math.floor((Hs - GRUP_DIKEY + SATIR_ARA) / (k + SATIR_ARA)));
+        for (let kap = enCok; kap >= 1; kap--) {
+          if (sigar(k, kap, Hs)) { kutu = k; satirKapasite = kap; bulundu = true; break bul; }
+        }
+      }
+      if (!bulundu) {
+        // Hiçbir boyutta tek ekrana sığmıyor (çok kelimeli seviye): tahta kendi içinde kayar.
+        // Her kutu boyu için en kısa düzen bulunur; ~1,4 ekranı geçmeyen en büyük boy seçilir.
+        let secim = null;
+        for (let k = Math.min(24, genislikSiniri); k >= 18; k--) {
+          let enIyi = null;
+          for (let kap = 1; kap <= enCokAdet; kap++) {
+            const y = toplamYukseklik(k, kap);
+            if (!enIyi || y < enIyi.y) enIyi = { k, kap, y };
+          }
+          if (enIyi && enIyi.y < Infinity) {
+            secim = enIyi;
+            if (enIyi.y <= Hs * 1.4) break;
+          }
+        }
+        kutu = secim ? secim.k : 18;
+        satirKapasite = secim ? secim.kap : enCokAdet;
+      }
+      mobilOlcu = { anahtar, kutu, kap: satirKapasite };
+    }
   } else {
     bul: for (let k = 62; k >= 20; k--) {
       const enCok = Math.max(1, Math.floor((H - GRUP_DIKEY + SATIR_ARA) / (k + SATIR_ARA)));
@@ -551,6 +590,9 @@ function tahtaCiz(lv) {
     }
   }
   tahta.style.setProperty('--kutu', kutu + 'px');
+  // Yeniden kurulumda tahtanın kendi kaydırma konumu korunur (yeni seviyede başa döner)
+  const eskiKaydirma = tahtaLv === lv.kimlik ? tahta.scrollTop : 0;
+  tahtaLv = lv.kimlik;
   // Tahta her güncellemede yeniden kurulur; sürekli animasyonlar (hazine parıltısı) baştan başlamasın diye faz verilir
   tahta.style.setProperty('--faz', Math.round(performance.now() % 2400) + 'ms');
   tahta.innerHTML = '';
@@ -613,6 +655,7 @@ function tahtaCiz(lv) {
     }
   }
   oncekiBulunan = yeniBulunan;
+  tahta.scrollTop = eskiKaydirma;
   for (const [el, s] of efektler) slotEfekti(el, s);
 }
 
@@ -1366,4 +1409,57 @@ setInterval(() => {
   sonSaniye = sn;
 }, 100);
 
-addEventListener('resize', () => { if (D?.lv && D.durum !== 'lobi') tahtaCiz(D.lv); });
+// ---------- Mobil düzen: görünür alan ve klavye ----------
+// Mobilde oyun ekranı görünür alana (visualViewport) sabitlenir; sayfa kaymaz, yalnızca
+// içerik bölmesi kayar. Klavye açılınca ekran sıkışık düzene geçer, yazma alanı hep görünür.
+const mobilMq = matchMedia('(max-width: 860px)');
+let tamYukseklik = 0;     // klavye kapalıyken görünür alan yüksekliği
+let olcuGenislik = 0;
+let klavyeAcik = false;
+const girdiOdakta = () => { const a = document.activeElement; return !!a && (a.tagName === 'INPUT' && !['checkbox', 'range'].includes(a.type) || a.tagName === 'TEXTAREA'); };
+function gorunurYukseklik() { return window.visualViewport ? visualViewport.height : innerHeight; }
+function klavyePayi() { return klavyeAcik ? Math.max(0, tamYukseklik - gorunurYukseklik()) : 0; }
+
+function yazmaYerlesim() {
+  const ya = $('yazmaAlani');
+  if (mobilMq.matches) { if (ya.parentElement !== $('oyun')) document.querySelector('.oyun-govde').after(ya); }
+  else if (ya.parentElement !== document.querySelector('.sol')) document.querySelector('.sol').appendChild(ya);
+}
+
+function gorunumGuncelle() {
+  const vv = window.visualViewport;
+  const h = gorunurYukseklik();
+  if (innerWidth !== olcuGenislik) { olcuGenislik = innerWidth; tamYukseklik = 0; }
+  const odak = girdiOdakta();
+  tamYukseklik = odak ? Math.max(tamYukseklik, h) : h;
+  const kok = document.documentElement.style;
+  kok.setProperty('--vvh', Math.round(h) + 'px');
+  kok.setProperty('--vv-ust', Math.round(vv ? vv.offsetTop : 0) + 'px');
+  const yeni = mobilMq.matches && odak && tamYukseklik - h > 120;
+  if (yeni !== klavyeAcik) {
+    klavyeAcik = yeni;
+    document.body.classList.toggle('klavye', yeni);
+    // Kelime yazmaya başlarken harfler ve tahta görünsün (bir kez; sürekli kaydırma yapılmaz)
+    if (yeni && document.activeElement === $('tahmin')) document.querySelector('.oyun-govde').scrollTop = 0;
+  }
+}
+
+let cizimGenislik = innerWidth;
+function boyutDegisti() {
+  gorunumGuncelle();
+  if (!D?.lv || D.durum === 'lobi') return;
+  // Mobilde yalnızca yükseklik değiştiyse (klavye, adres çubuğu) tahta yeniden çizilmez
+  if (mobilMq.matches && innerWidth === cizimGenislik) return;
+  cizimGenislik = innerWidth;
+  tahtaCiz(D.lv);
+}
+addEventListener('resize', boyutDegisti);
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', boyutDegisti);
+  visualViewport.addEventListener('scroll', gorunumGuncelle);
+}
+addEventListener('focusin', gorunumGuncelle);
+addEventListener('focusout', () => setTimeout(gorunumGuncelle, 50));
+mobilMq.addEventListener('change', () => { yazmaYerlesim(); boyutDegisti(); if (D?.lv && D.durum !== 'lobi') tahtaCiz(D.lv); });
+yazmaYerlesim();
+gorunumGuncelle();

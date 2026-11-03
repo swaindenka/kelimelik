@@ -1165,15 +1165,18 @@ function skorCiz() {
   const ol = $('skorTablosu');
   ol.innerHTML = '';
   const sirali = [...D.oyuncular].sort((a, b) => b.puan - a.puan);
+  const lider = Math.max(1, sirali[0]?.puan || 0);
   sirali.forEach((p, i) => {
     const li = document.createElement('li');
+    li.style.setProperty('--oran', Math.max(0, p.puan) / lider);
+    li.style.setProperty('--renk', p.renk);
     if (p.id === benimId) li.classList.add('ben');
     if (!p.bagli) li.classList.add('cevrimdisi');
     const onceki = oncekiPuanlar[p.id];
     if (onceki !== undefined && p.puan > onceki) li.classList.add('nabiz');
     oncekiPuanlar[p.id] = p.puan;
     const sp = p.seviyePuan ? (p.seviyePuan > 0 ? '+' : '') + p.seviyePuan : '';
-    li.innerHTML = `<span class="sira">${i === 0 && p.puan > 0 ? '👑' : i + 1}</span><span class="nokta" style="background:${p.renk}"></span><span class="ad"></span><span class="kelime-say" title="Bu seviyede bulduğu kelime">${p.seviyeKelime ? p.seviyeKelime + ' kel.' : ''}</span><span class="sp${p.seviyePuan < 0 ? ' eksi' : ''}">${sp}</span><span class="p">${p.puan}</span>`;
+    li.innerHTML = `<span class="sira">${p.puan > 0 && i < 3 ? ['👑', '🥈', '🥉'][i] : i + 1}</span><span class="nokta" style="background:${p.renk}"></span><span class="ad"></span><span class="kelime-say" title="Bu seviyede bulduğu kelime">${p.seviyeKelime ? p.seviyeKelime + ' kel.' : ''}</span><span class="sp${p.seviyePuan < 0 ? ' eksi' : ''}">${sp}</span><span class="p">${p.puan}</span>`;
     li.querySelector('.ad').textContent = p.isim;
     ol.appendChild(li);
   });
@@ -1664,7 +1667,10 @@ function tahminSonucu(c) {
 
 // Oyun ekranında herhangi bir harfe basınca tahmin kutusuna odaklan
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { $('menuKatman').classList.add('gizli'); if (D?.durum !== 'oyun') sonucKatmani(false); }
+  if (e.key === 'Escape') {
+    if (!$('kuralKatman').classList.contains('gizli')) { kurallar(false); return; }
+    $('menuKatman').classList.add('gizli'); if (D?.durum !== 'oyun') sonucKatmani(false);
+  }
   if (!$('oyun').classList.contains('aktif')) return;
   const odak = document.activeElement;
   if (odak && ['INPUT', 'SELECT', 'TEXTAREA'].includes(odak.tagName)) return;
@@ -1702,6 +1708,14 @@ $('titresimAcik').checked = titresimAcik;
 $('titresimAcik').onchange = () => { titresimAcik = $('titresimAcik').checked; kaydet('ka_titresim', titresimAcik ? '1' : '0'); titret(40); };
 function titret(desen) { if (titresimVar && titresimAcik) { try { navigator.vibrate(desen); } catch {} } }
 $('menuKapat').onclick = () => $('menuKatman').classList.add('gizli');
+// Kurallar penceresi: girişten, lobiden ve oyun menüsünden açılır
+function kurallar(ac) {
+  $('kuralKatman').classList.toggle('gizli', !ac);
+  if (ac) { $('menuKatman').classList.add('gizli'); $('kuralKapat').focus(); Ses.cal('tikla'); }
+}
+for (const b of document.querySelectorAll('.kural-ac')) b.addEventListener('click', () => kurallar(true));
+$('kuralKapat').onclick = () => kurallar(false);
+$('kuralKatman').addEventListener('click', (e) => { if (e.target === $('kuralKatman')) kurallar(false); });
 $('menuKatman').addEventListener('click', (e) => { if (e.target === $('menuKatman')) $('menuKatman').classList.add('gizli'); });
 $('menuAtla').onclick = () => { socket.emit('atla'); $('menuKatman').classList.add('gizli'); };
 $('menuLobi').onclick = () => { socket.emit('lobi'); $('menuKatman').classList.add('gizli'); };

@@ -44,106 +44,98 @@
   <!-- Giriş -->
   <section id="giris" class="ekran aktif">
     <div class="kart giris-kart">
-      <h1 class="logo"><span>K</span><span>E</span><span>L</span><span>İ</span><span>M</span><span>E</span> <b>AVI</b></h1>
+      <h1 class="logo" aria-label="Kelime Avı"><span>K</span><span>E</span><span>L</span><span>İ</span><span>M</span><span>E</span> <b>AVI</b></h1>
       <p class="alt">Harflerden kelime türet, arkadaşlarınla seviye atla.</p>
+      <ul class="ozellikler" aria-label="Öne çıkanlar">
+        <li>👥 30 kişiye kadar</li><li>🌐 Türkçe · English</li><li>🎲 10 seviye türü</li><li>⚡ Üyelik yok</li>
+      </ul>
       <label>Adın
         <input id="isim" maxlength="16" autocomplete="nickname" placeholder="ör. Musa">
       </label>
-      <button id="odaKur" class="btn ana">Yeni oda kur</button>
-      <div class="ayrac"><span>ya da</span></div>
+      <button id="odaKur" class="btn ana genis">✨ Yeni oda kur</button>
+      <div class="ayrac"><span>ya da bir odaya katıl</span></div>
       <div class="satir">
-        <input id="kodGir" maxlength="4" placeholder="ODA KODU" class="kod-input">
-        <button id="katil" class="btn">Katıl</button>
+        <input id="kodGir" maxlength="4" placeholder="ODA KODU" class="kod-input" aria-label="Oda kodu">
+        <button id="katil" class="btn">Katıl →</button>
       </div>
       <p id="girisHata" class="hata"></p>
+      <button type="button" class="btn hayalet kucuk kural-ac">📖 Nasıl oynanır?</button>
     </div>
   </section>
 
-  <!-- Lobi -->
+  <!-- Lobi: oda kodu üstte; solda oyuncular ve sohbet, sağda ayarlar -->
   <section id="lobi" class="ekran">
-    <div class="kart lobi-kart">
-      <div class="lobi-ust">
-        <div>
+    <div class="lobi-kart">
+      <header class="kart lobi-ust">
+        <div class="kod-kutu">
           <div class="etiket">Oda kodu</div>
           <div id="lobiKod" class="buyuk-kod">----</div>
         </div>
         <div class="lobi-dugmeler">
           <button id="lobiSes" class="btn ikon hayalet" title="Ses efektleri">🔊</button>
           <button id="lobiMuzik" class="btn ikon hayalet" title="Müzik">🎵</button>
+          <button type="button" class="btn kucuk kural-ac" title="Kurallar">📖 Kurallar</button>
           <button id="linkKopyala" class="btn kucuk">🔗 Davet linkini kopyala</button>
           <button id="lobiAyril" class="btn kucuk cikis-btn" title="Odadan ayrıl ve giriş ekranına dön">🚪 Ayrıl</button>
         </div>
-      </div>
+      </header>
       <div class="lobi-govde">
-        <div>
-          <h3>Oyuncular <span id="oyuncuSayi" class="sayi-rozet">0</span></h3>
-          <ul id="lobiOyuncular" class="oyuncu-listesi"></ul>
-          <p id="kalabalikSatir" class="kalabalik-satir"></p>
-          <details class="nasil" open>
-            <summary>Nasıl oynanır?</summary>
-            <ul>
-              <li>Harflerle kelime yaz, <b>Enter</b>'a bas ya da taşlara tıkla. <b>↑</b> son tahmini geri getirir.</li>
-              <li><b>Dil:</b> Türkçe ya da İngilizce kelimelerle oynayabilirsiniz (oda sahibi seçer). Harf puanları dile göre değişir.</li>
-              <li>Her harfin bir <b>puanı</b> var (taşın köşesinde). Nadir harf = çok puan. <b>×2 / ×3</b> taşlar o harfin puanını katlar.</li>
-              <li>Kelime puanı = harf puanları × uzunluk çarpanı. Uzun kelime çok kazandırır, <b>büyük kelime ×2</b>.</li>
-              <li>Süre bitmeden takımca <b>puan hedefine</b> ulaşın, yoksa can gider. Bonus kelimeler de hedefe sayılır.</li>
-              <li><b>⭐ Yıldız = seviye:</b> ★ ile 1, ★★ ile 2, ★★★ ile 3 seviye ilerlersiniz. <b>👑 Patron</b> seviyeleri atlanamaz, atlama orada durur.</li>
-              <li><b>🗝️ Hazine kelime</b> tahtada parlar: ×2 puan ve takıma <b>+8 saniye</b>.</li>
-              <li><b>⏱ Son hamle:</b> son 10 saniyede bulunan kelimeler ×1.5 puan.</li>
-              <li>8 saniye içinde art arda bulursan <b>🔥 seri</b>: her adım kelime puanına +%10.</li>
-              <li>Harfler 10 saniyede bir kendiliğinden karışır, sen yazarken durur.</li>
-              <li>Özel seviyeler: <b>⚡ Hızlı Tur</b> (kısa süre), <b>💰 Altın Tur</b> (her 5. seviye, puan ×2), <b>👑 Patron</b> (her 10. seviye: patronun canını sıfırlayın, +1 can kazanın).</li>
-              <li><b>?</b> gizli harftir, sonra açılır. Bazı seviyelerde <b>sahte harf</b> vardır.</li>
-              <li><b>❄️ Buzlu harf</b> takım 2–3 kelime bulana kadar kullanılamaz. <b>💣 Bomba harf</b>in fitili yanar: o harfi içeren bir kelime bulun (imha edene ek puan), yoksa patlar ve <b>10 saniye</b> gider.</li>
-              <li><b>⏳ Kum Saati</b>: az süreyle başlar, her kelime süre ekler. <b>📏 Uzun Kelime Turu</b>: kısa kelimeler yok, puanlar ×1.3.</li>
-              <li><b>🔗 Zincir</b>: son bulunan kelimenin son harfiyle başlayan kelime ×2. <b>🎯 Görev Turu</b>: 3 görev, her biri takıma ödül. <b>🎲 Zar Turu</b>: taş çarpanları 15 sn'de bir yeniden atılır. <b>🌪️ Fırtına</b>: harfler yazarken bile karışır, puanlar ×1.25.</li>
-              <li><b>👥 Kalabalık dengesi:</b> oyuncu arttıkça hedef büyür (kişi başı +%14, en çok +%60), süre kısalır ve tahtaya daha çok kelime çıkar.</li>
-              <li><b>💡 İpucu</b> bir kelimenin harfini herkese açar, puanından düşer.</li>
-              <li>Tahtada olmayan ama sözlükte olan kelimeler <b>bonus</b> puan verir.</li>
-            </ul>
-          </details>
+        <div class="lobi-sol">
+          <section class="kart lobi-blok blok-oyuncular">
+            <h3>Oyuncular <span id="oyuncuSayi" class="sayi-rozet">0</span></h3>
+            <ul id="lobiOyuncular" class="oyuncu-listesi"></ul>
+            <p id="kalabalikSatir" class="kalabalik-satir"></p>
+          </section>
+          <section class="kart lobi-blok blok-sohbet">
+            <div id="lobiSohbetYeri" class="lobi-sohbet"></div>
+          </section>
         </div>
-        <div>
-          <h3>Ayarlar</h3>
-          <div class="dil-secim" id="dilSecim" role="radiogroup" aria-label="Kelime dili">
-            <button type="button" data-dil="tr"><b>TR</b><span>Türkçe kelimeler</span></button>
-            <button type="button" data-dil="en"><b>EN</b><span>English words</span></button>
-          </div>
-          <div class="zorluk-secim" id="zorlukSecim" role="radiogroup" aria-label="Zorluk">
-            <button type="button" data-zorluk="kolay"><b>🌱</b><span>Kolay</span></button>
-            <button type="button" data-zorluk="normal"><b>⚔️</b><span>Normal</span></button>
-            <button type="button" data-zorluk="zor"><b>🔥</b><span>Zor</span></button>
-            <button type="button" data-zorluk="uzman"><b>💀</b><span>Uzman</span></button>
-          </div>
-          <p id="zorlukAciklama" class="zorluk-aciklama"></p>
-          <div id="rekorSatir" class="rekor-satir gizli"></div>
-          <div class="ayar-satir">
-            <label>Seviye süresi
-              <select id="ayarSure">
-                <option value="60">60 sn</option><option value="80">80 sn</option><option value="100">100 sn</option>
-                <option value="120">120 sn</option><option value="150">150 sn</option><option value="180">180 sn</option>
+        <div class="lobi-sag">
+          <section class="kart lobi-blok blok-ayarlar">
+            <h3>Ayarlar</h3>
+            <div class="dil-secim" id="dilSecim" role="radiogroup" aria-label="Kelime dili">
+              <button type="button" data-dil="tr"><b>TR</b><span>Türkçe kelimeler</span></button>
+              <button type="button" data-dil="en"><b>EN</b><span>English words</span></button>
+            </div>
+            <div class="zorluk-secim" id="zorlukSecim" role="radiogroup" aria-label="Zorluk">
+              <button type="button" data-zorluk="kolay"><b>🌱</b><span>Kolay</span></button>
+              <button type="button" data-zorluk="normal"><b>⚔️</b><span>Normal</span></button>
+              <button type="button" data-zorluk="zor"><b>🔥</b><span>Zor</span></button>
+              <button type="button" data-zorluk="uzman"><b>💀</b><span>Uzman</span></button>
+            </div>
+            <p id="zorlukAciklama" class="zorluk-aciklama"></p>
+            <div id="rekorSatir" class="rekor-satir gizli"></div>
+            <div class="ayar-satir">
+              <label>Seviye süresi
+                <select id="ayarSure">
+                  <option value="60">60 sn</option><option value="80">80 sn</option><option value="100">100 sn</option>
+                  <option value="120">120 sn</option><option value="150">150 sn</option><option value="180">180 sn</option>
+                </select>
+              </label>
+              <label>Can
+                <select id="ayarCan">
+                  <option value="1">1</option><option value="3">3</option><option value="5">5</option><option value="0">Sınırsız</option>
+                </select>
+              </label>
+            </div>
+            <label class="ilerleme-ayar">İlerleme
+              <select id="ayarIlerleme">
+                <option value="yildiz">⭐ Yıldız kadar seviye atla</option>
+                <option value="tek">Her geçişte 1 seviye</option>
               </select>
             </label>
-            <label>Can
-              <select id="ayarCan">
-                <option value="1">1</option><option value="3">3</option><option value="5">5</option><option value="0">Sınırsız</option>
-              </select>
-            </label>
+            <p id="ilerlemeAciklama" class="zorluk-aciklama"></p>
+          </section>
+          <section class="kart lobi-blok blok-harf">
+            <h3>Harf puanları</h3>
+            <div class="harf-tablosu" id="harfTablosu" aria-label="Harf puanları"></div>
+          </section>
+          <div class="baslat-alani">
+            <button id="baslat" class="btn ana genis">▶ Oyunu başlat</button>
+            <p id="bekle" class="bekle"><span class="bekle-nokta" aria-hidden="true"></span>Oda sahibinin oyunu başlatması bekleniyor</p>
           </div>
-          <label class="ilerleme-ayar">İlerleme
-            <select id="ayarIlerleme">
-              <option value="yildiz">⭐ Yıldız kadar seviye atla</option>
-              <option value="tek">Her geçişte 1 seviye</option>
-            </select>
-          </label>
-          <p id="ilerlemeAciklama" class="zorluk-aciklama"></p>
-          <h3>Harf puanları</h3>
-          <div class="harf-tablosu" id="harfTablosu" aria-label="Harf puanları"></div>
         </div>
       </div>
-      <button id="baslat" class="btn ana genis">Oyunu başlat</button>
-      <p id="bekle" class="bekle">Oda sahibinin oyunu başlatması bekleniyor…</p>
-      <div id="lobiSohbetYeri" class="lobi-sohbet"></div>
     </div>
   </section>
 
@@ -253,6 +245,7 @@
           <label>Müzik düzeyi <input type="range" id="muzikDuzey" min="0" max="1" step="0.05"></label>
           <label class="yatay gizli" id="titresimSatir"><span>Titreşim (son saniyeler)</span><input type="checkbox" id="titresimAcik"></label>
         </div>
+        <button type="button" class="btn kural-ac">📖 Kurallar</button>
         <button id="menuLink" class="btn">🔗 Davet linkini kopyala</button>
         <button id="menuAtla" class="btn sahip-ozel">Seviyeyi bitir</button>
         <button id="menuLobi" class="btn sahip-ozel">Lobiye dön</button>
@@ -275,6 +268,66 @@
     </div>
   </div>
 
+  <!-- Kurallar: girişten, lobiden ve oyun menüsünden açılır -->
+  <div id="kuralKatman" class="katman gizli" role="dialog" aria-modal="true" aria-labelledby="kuralBaslik">
+    <div class="kart kural-kart">
+      <div class="kural-ust">
+        <h2 id="kuralBaslik">📖 Nasıl oynanır?</h2>
+        <button type="button" id="kuralKapat" class="btn ikon hayalet" title="Kapat" aria-label="Kapat">✕</button>
+      </div>
+      <div class="kural-govde">
+        <section>
+          <h4>Temel kurallar</h4>
+          <div class="kural-izgara">
+            <div><b>⌨️ Yaz ve gönder</b><span>Harflerle kelime yaz, <kbd>Enter</kbd>'a bas ya da taşlara tıkla. <kbd>↑</kbd> son tahmini geri getirir.</span></div>
+            <div><b>🎯 Puan hedefi</b><span>Süre bitmeden takımca hedefe ulaşın, yoksa bir can gider. Bonus kelimeler de hedefe sayılır.</span></div>
+            <div><b>🔢 Harf puanı</b><span>Taşın köşesindeki sayı harfin puanı. Nadir harf çok puan; <b>×2 / ×3</b> taşlar katlar.</span></div>
+            <div><b>📐 Kelime puanı</b><span>Harf puanları × uzunluk çarpanı. Uzun kelime çok kazandırır, <b>büyük kelime ×2</b>.</span></div>
+            <div><b>⭐ Yıldız = seviye</b><span>★ ile 1, ★★ ile 2, ★★★ ile 3 seviye ilerlersiniz. Patron seviyeleri atlanamaz.</span></div>
+            <div><b>🌐 Dil</b><span>Türkçe ya da İngilizce kelimeler (oda sahibi seçer). Harf puanları dile göre değişir.</span></div>
+          </div>
+        </section>
+        <section>
+          <h4>Bonuslar</h4>
+          <div class="kural-izgara">
+            <div><b>✨ Bonus kelime</b><span>Tahtada olmayan ama sözlükte olan kelimeler bonus puan verir.</span></div>
+            <div><b>🗝️ Hazine kelime</b><span>Tahtada parlar: ×2 puan ve takıma +8 saniye.</span></div>
+            <div><b>🔥 Seri</b><span>8 saniye içinde art arda bulursan her adım kelime puanına +%10.</span></div>
+            <div><b>⏱ Son hamle</b><span>Son 10 saniyede bulunan kelimeler ×1.5 puan.</span></div>
+            <div><b>💡 İpucu</b><span>Bir kelimenin harfini herkese açar, alanın puanından düşer.</span></div>
+            <div><b>⟲ Karıştırma</b><span>Harfler 10 saniyede bir karışır; sen yazarken durur.</span></div>
+          </div>
+        </section>
+        <section>
+          <h4>Seviye türleri</h4>
+          <div class="kural-izgara turler">
+            <div data-tur="hizli"><b>⚡ Hızlı Tur</b><span>Süre kısa, hedef düşük · puan ×1.25</span></div>
+            <div data-tur="altin"><b>💰 Altın Tur</b><span>Her 5. seviye · bütün puanlar ×2</span></div>
+            <div data-tur="patron"><b>👑 Patron</b><span>Her 10. seviye · bir harf fazla, hedef yüksek · geçerseniz +1 can</span></div>
+            <div data-tur="kumsaati"><b>⏳ Kum Saati</b><span>Az süreyle başlar, her kelime süre ekler</span></div>
+            <div data-tur="uzun"><b>📏 Uzun Kelime</b><span>Kısa kelimeler yok · puan ×1.3</span></div>
+            <div data-tur="zincir"><b>🔗 Zincir</b><span>Son kelimenin son harfiyle başlayan kelime ×2</span></div>
+            <div data-tur="gorev"><b>🎯 Görev Turu</b><span>3 görev · her biri takıma ödül</span></div>
+            <div data-tur="zar"><b>🎲 Zar Turu</b><span>Taş çarpanları 15 sn'de bir yeniden atılır</span></div>
+            <div data-tur="firtina"><b>🌪️ Fırtına</b><span>Harfler yazarken bile karışır · puan ×1.25</span></div>
+          </div>
+        </section>
+        <section>
+          <h4>Tuzaklar</h4>
+          <div class="kural-izgara">
+            <div><b>❓ Gizli harf</b><span>Harf ve puanı gizli; sürenin %40'ında açılır.</span></div>
+            <div><b>✗ Sahte harf</b><span>Kelimede olmayan cazip harf; sürenin %60'ında üstü çizilir.</span></div>
+            <div><b>❄️ Buzlu harf</b><span>Takım 2–3 kelime bulana kadar kullanılamaz.</span></div>
+            <div><b>💣 Bomba harf</b><span>O harfi içeren bir kelime bulun (ek puan), yoksa patlar ve 10 saniye gider.</span></div>
+          </div>
+        </section>
+        <section>
+          <h4>Kalabalık dengesi</h4>
+          <p class="kural-not">👥 Oyuncu arttıkça hedef büyür (kişi başı +%14, en çok +%60), süre kısalır (en çok −%25) ve tahtaya daha çok kelime çıkar.</p>
+        </section>
+      </div>
+    </div>
+  </div>
   <div id="afisler" class="afisler"></div>
   <div id="buyukSayac" class="buyuk-sayac" aria-hidden="true"></div>
   <!-- Son 10 saniye: tahtanın üstünde yarı saydam büyük geri sayım -->

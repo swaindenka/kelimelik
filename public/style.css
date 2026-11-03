@@ -93,6 +93,8 @@ input[type=range] { width: 100%; cursor: pointer; }
 .btn.hayalet { background: transparent; }
 .btn.ikon { padding: 8px 12px; font-size: 18px; line-height: 1; }
 .btn.genis { width: 100%; padding: 15px; font-size: 18px; }
+.btn.cikis-btn { border-color: color-mix(in srgb, var(--kotu) 55%, var(--cizgi)); color: #ffb3bf; }
+.btn.cikis-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--kotu) 22%, var(--panel2)); }
 .satir { display: flex; gap: 10px; }
 .satir.merkez { justify-content: center; flex-wrap: wrap; }
 .ayrac { display: flex; align-items: center; gap: 10px; color: var(--soluk); font-size: 13px; }
@@ -133,7 +135,7 @@ h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5p
 .zorluk-secim[data-secili=kolay] button.secili { border-color: var(--iyi); background: rgba(74, 222, 128, .12); color: var(--iyi); }
 .zorluk-aciklama { margin: -4px 0 0; font-size: 12.5px; color: var(--soluk); min-height: 2.6em; }
 .rekor-satir { margin-top: -6px; font-size: 13px; font-weight: 700; color: var(--vurgu); background: rgba(255, 200, 61, .08); border: 1px solid rgba(255, 200, 61, .3); border-radius: 10px; padding: 6px 10px; }
-.lobi-dugmeler { display: flex; align-items: center; gap: 6px; }
+.lobi-dugmeler { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 /* Harf puanı tablosu (nasıl oynanır) */
 .harf-tablosu { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 12px; background: var(--bg2); border-radius: 12px; padding: 11px 14px; }
 .harf-tablosu div { display: flex; align-items: center; gap: 8px; font-size: 12.5px; letter-spacing: 1.5px; font-weight: 700; color: var(--yazi); }

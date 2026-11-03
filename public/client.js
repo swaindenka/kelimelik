@@ -268,7 +268,7 @@ function gecisleriIsle(o, d) {
     if (lv.tahta.some((s) => s.hz)) notlar.push('🗝️ hazine kelime');
     if (lv.gizliVar) notlar.push('gizli harf var');
     if (lv.sahteVar) notlar.push('dikkat: bir harf sahte!');
-    if (lv.harfler.some((h) => h.buz)) notlar.push(`❄️ buzlu harf (${lv.buzKalan} kelimede çözülür)`);
+    if (lv.harfler.some((h) => h.buz)) notlar.push(`❄️ buzlu harf: ${lv.buzKalan} kelimede çözülür · ${lv.tahta.filter((s) => s.bz).length} kelime kilitli`);
     if (lv.harfler.some((h) => h.bomba)) notlar.push(`💣 bomba harf: ${Math.round((lv.bombaBitis - simdi()) / 1000)} sn içinde kullanın`);
     const kb = lv.kalabalik;
     if (kb?.n > 1 && lv.tabanHedef) notlar.push(`👥 ${kb.n} kişi: hedef +%${Math.round((lv.puanHedef / lv.tabanHedef - 1) * 100)}`);
@@ -600,6 +600,7 @@ function ustBarCiz(lv, yeniLv) {
 let mobilOlcu = {};  // mobilde seviye başına sabitlenen kutu ölçüsü
 let masaustuOlcu = {}; // masaüstünde seviye + pencere boyutu başına sabitlenen kutu ölçüsü
 let tahtaLv = null;  // tahtada en son çizilen seviye
+let oncekiBuzlu = new Set(); // bir önceki çizimde buz yüzünden kilitli olan kelimeler
 function tahtaCiz(lv) {
   const tahta = $('tahta');
   const dar = innerWidth < 860;
@@ -771,6 +772,7 @@ function tahtaCiz(lv) {
     }
   }
   oncekiBulunan = yeniBulunan;
+  oncekiBuzlu = new Set(lv.tahta.flatMap((s, i) => (s.bz ? [i] : [])));
   tahta.scrollTop = eskiKaydirma;
   for (const [el, s] of efektler) slotEfekti(el, s);
 }
@@ -780,6 +782,9 @@ function slotOlustur(lv, s, i) {
   el.className = 'slot';
   el.dataset.i = i;
   if (s.n === lv.buyukUzunluk) el.classList.add('buyuk');
+  // Buz yüzünden kilitli kelime; buz çözülünce bir kez "eriyor"
+  if (s.bz) el.classList.add('buzlu');
+  else if (oncekiBuzlu.has(i) && !s.bulan) el.classList.add('buz-eridi');
   if (s.hz) {
     el.classList.add('hazine');
     const r = document.createElement('span');

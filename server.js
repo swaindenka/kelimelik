@@ -3,7 +3,7 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
-const { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, harfDegeri, kalabalikCarpani, zarAt, ZAR_ARALIK, DILLER, HAZINE_CARPAN, ZORLUKLAR, TURLER } = require('./game');
+const { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, harfDegeri, kalabalikCarpani, zarAt, buzluKelime, ZAR_ARALIK, DILLER, HAZINE_CARPAN, ZORLUKLAR, TURLER } = require('./game');
 
 const PORT = process.env.PORT || 3000;
 const SONUC_SURESI = 16000;  // seviye sonu ekranı (ms) — tahtaya bakmaya zaman kalsın; herkes hazırsa erken başlar
@@ -115,6 +115,7 @@ function genelDurum(oda) {
   };
   if (lv) {
     const gizliGoster = oda.durum !== 'oyun';
+    const buzluVar = lv.harfler.some((h) => h.buz);
     d.lv = {
       kimlik: lv.kimlik,
       dil: lv.dil,
@@ -137,6 +138,8 @@ function genelDurum(oda) {
         if (s.hazine) o.hz = true; // hazine kelimenin yeri herkese görünür, kendisi değil
         // İpucuyla açılan harfler: [konum, harf] çiftleri
         if (!goster && s.ipucu && s.ipucu.length) o.ip = s.ipucu.map((j) => [j, s.w[j]]);
+        // Buz çözülene kadar yazılamayan kelimeler tahtada buzlu görünür (hangileri atlanmalı bilinsin)
+        if (!goster && buzluVar && buzluKelime(lv, s.w)) o.bz = true;
         return o;
       }),
       bonus: lv.bonus,
@@ -148,6 +151,7 @@ function genelDurum(oda) {
       buyukUzunluk: lv.buyukUzunluk,
       gizliVar: lv.harfler.some((h) => h.gizli),
       buzKalan: lv.buzKalan,
+      buzSerbest: lv.buzSerbest || 0,
       bombaBitis: lv.bombaBitis || 0,
       kumsaati: lv.kumsaati,
       kalabalik: lv.kalabalik,

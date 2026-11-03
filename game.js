@@ -149,6 +149,39 @@ function seviyeTuru(seviye, onceki = null) {
   return havuz.length ? havuz[Math.floor(Math.random() * havuz.length)] : 'normal';
 }
 
+// Buzlu taş seçimi: buz, tahtaya göre adil olmalı. Her aday harf için buz çözülmeden
+// yazılabilen (serbest) ve buz yüzünden kilitlenen (engel) tahta kelimeleri sayılır.
+// Önce "en az 4 serbest, en az 2 engel" olan, olmazsa "en az 3 serbest, en az 1 engel"
+// olan harfler arasından seçilir; hiçbiri yoksa o seviyede buz çıkmaz.
+function buzSec(harfler, tahta, harfSayaci) {
+  const adaylar = [...new Set(harfler.filter((h) => !h.gizli && !h.bomba && !h.sahte).map((h) => h.ch))].map((ch) => {
+    const kalan = { ...harfSayaci, [ch]: harfSayaci[ch] - 1 };
+    const serbest = tahta.filter((s) => sigarMi(sayac(s.w), kalan)).length;
+    return { ch, serbest, engel: tahta.length - serbest };
+  });
+  const uygun = adaylar.filter((a) => a.serbest >= 4 && a.engel >= 2);
+  const yedek = adaylar.filter((a) => a.serbest >= 3 && a.engel >= 1);
+  const havuz = uygun.length ? uygun : yedek;
+  if (!havuz.length) return null;
+  const secim = havuz[Math.floor(Math.random() * havuz.length)];
+  // Aynı harften birden çok taş varsa çarpansız olan dondurulur (çarpanlı taş kullanılabilir kalsın)
+  const taslar = harfler.filter((h) => h.ch === secim.ch && !h.gizli && !h.bomba).sort((a, b) => a.carpan - b.carpan);
+  return { tas: taslar[0], ...secim };
+}
+
+// Kelime ancak buzlu taşla yazılabiliyor mu? (buz çözülene kadar kilitli)
+function buzluKelime(lv, w) {
+  const b = lv.harfler.find((h) => h.buz);
+  if (!b) return false;
+  return !sigarMi(sayac(w), { ...lv.harfSayaci, [b.ch]: lv.harfSayaci[b.ch] - 1 });
+}
+
+// Buzu kırmak için gereken kelime: buz çözülmeden yazılabilen kelime sayısına göre
+// yaklaşık her 7 serbest kelimeye 1 (en az 1, en çok 3) ve hiçbir zaman serbest kelimelerin yarısından fazla değil
+function buzEsigi(serbest) {
+  return Math.max(1, Math.min(3, Math.round(serbest / 7), Math.floor(serbest / 2)));
+}
+
 // Zar turu: çarpanları sil, uygun taşlardan ikisine yeniden ×2 / ×3 ver; bulunmamış kelimelerin
 // puanlarını yeni çarpanlarla güncelle. Değişen taşların indekslerini döndürür.
 function zarAt(lv) {
@@ -251,7 +284,8 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd, dilKod = 'tr', secenek =
   // Buzlu harf: takım birkaç kelime bulana kadar kullanılamaz. Bomba harf: fitili yanar,
   // o harfi içeren bir kelime bulunmazsa patlar (süre sunucuda kurulur). İkisi de gizli harf olmaz.
   const bosta = () => karistir(harfler.filter((h) => !h.gizli && !h.buz && !h.bomba));
-  if (ayar.buz) bosta()[0].buz = true;
+  const buz = ayar.buz ? buzSec(harfler, tahta, tohum.c) : null;
+  if (buz) buz.tas.buz = true;
   if (ayar.bomba) bosta()[0].bomba = true;
   if (ayar.sahte) {
     // Kelimede olmayan, rastgele bir harf ekle — çoğu zaman cazip, yüksek puanlı bir harf
@@ -281,7 +315,8 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd, dilKod = 'tr', secenek =
     kalabalik,
     kumsaati: !!tur.kumsaati,
     // Buz, bu kadar kelime (tahta ya da bonus) bulununca çözülür
-    buzKalan: harfler.some((h) => h.buz) ? (tahta.length >= 15 ? 3 : 2) : 0,
+    buzKalan: buz ? buzEsigi(buz.serbest) : 0,
+    buzSerbest: buz ? buz.serbest : 0, // buz çözülmeden yazılabilen tahta kelimesi
     takimPuan: 0,
   };
   // Puan hedefi: tahtadaki bütün kelimelerin toplam puanının belli bir oranı
@@ -361,4 +396,4 @@ function yildiz(lv) {
 const ALFABE = DILLER.tr.alfabe;       // geriye dönük uyumluluk
 const HARF_DEGER = DILLER.tr.harfDeger;
 
-module.exports = { seviyeUret, seviyeTuru, kalabalikCarpani, zarAt, ZAR_ARALIK, tahminKontrol, kelimePuani, yildiz, esikler, uzunlukCarpani, temizle, trKucuk, enKucuk, harfDegeri, DILLER, ALFABE, HARF_DEGER, PUAN_OLCEK, HAZINE_CARPAN, ZORLUKLAR, TURLER };
+module.exports = { seviyeUret, seviyeTuru, kalabalikCarpani, zarAt, buzluKelime, ZAR_ARALIK, tahminKontrol, kelimePuani, yildiz, esikler, uzunlukCarpani, temizle, trKucuk, enKucuk, harfDegeri, DILLER, ALFABE, HARF_DEGER, PUAN_OLCEK, HAZINE_CARPAN, ZORLUKLAR, TURLER };

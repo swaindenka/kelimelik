@@ -299,14 +299,21 @@ function oyunuBaslat(oda) {
   oda.can = oda.ayar.can;
   oda.akis = [];
   oda.sonrakiTur = null;
+  ayrilanlariTemizle(oda);
   for (const p of oda.oyuncular.values()) {
     p.puan = 0; p.seviyePuan = 0; p.oyunKelime = 0; p.enIyi = null; p.enSeri = 0;
   }
   seviyeBaslat(oda);
 }
 
+// Oyun sırasında ayrılanlar skor/akış tutarlı kalsın diye tutulur; lobiye ya da yeni oyuna geçince silinir
+function ayrilanlariTemizle(oda) {
+  for (const [id, p] of oda.oyuncular) if (p.ayrildi) oda.oyuncular.delete(id);
+}
+
 function lobiyeDon(oda) {
   zamanlayiciTemizle(oda);
+  ayrilanlariTemizle(oda);
   oda.durum = 'lobi';
   oda.lv = null;
   oda.sonSonuc = null;
@@ -363,6 +370,7 @@ io.on('connection', (socket) => {
       sohbetEkle(oda, { tur: 'sistem', olay: 'katildi', metin: `${isim} odaya katıldı` });
     }
     oyuncu.bagli = true;
+    oyuncu.ayrildi = false;
     oyuncu.socketId = socket.id;
     oda.bosSince = 0;
     if (!oda.sahip) oda.sahip = oyuncu.id;
@@ -499,6 +507,31 @@ io.on('connection', (socket) => {
     }
     if (s.tur === 'zaten') return cevap({ tur: 'zaten', w: s.w, bulan: lv.tahta[s.i].bulan });
     cevap(s);
+  });
+
+  // Oyuncu odadan kendi isteğiyle ayrılır (sayfayı yenilemeden giriş ekranına döner)
+  socket.on('ayril', (cevap) => {
+    const ack = typeof cevap === 'function' ? cevap : () => {};
+    if (!oda || !oyuncu) return ack({ ok: true });
+    const o = oda;
+    const p = oyuncu;
+    oda = null;
+    oyuncu = null;
+    socket.leave(o.kod);
+    if (p.socketId !== socket.id) return ack({ ok: true }); // başka bir sekme devralmış
+    if (o.durum === 'lobi') o.oyuncular.delete(p.id);
+    else { p.bagli = false; p.ayrildi = true; p.socketId = null; }
+    ack({ ok: true });
+    if (![...o.oyuncular.values()].some((x) => !x.ayrildi)) {
+      // Odada kimse kalmadı: odayı hemen kapat
+      zamanlayiciTemizle(o);
+      odalar.delete(o.kod);
+      return;
+    }
+    sohbetEkle(o, { tur: 'sistem', olay: 'ayrildi', metin: `${p.isim} odadan ayrıldı` });
+    sahipAktar(o);
+    if (![...o.oyuncular.values()].some((x) => x.bagli)) o.bosSince = Date.now();
+    yayinla(o);
   });
 
   socket.on('disconnect', () => {

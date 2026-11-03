@@ -4,7 +4,35 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#12102a">
-  <title>Kelime Avı</title>
+  <title>Kelime Avı — Türkçe Kelime Bilgisi Alıştırması</title>
+  <meta name="description" content="Kelime Avı, verilen harflerden Türkçe sözcük türeterek kelime dağarcığını geliştirmeye yarayan, arkadaşlarla birlikte kullanılabilen ücretsiz bir Türkçe dil alıştırmasıdır.">
+  <meta name="keywords" content="Türkçe, kelime bilgisi, kelime dağarcığı, sözcük türetme, dil öğrenme, Türkçe öğrenme, yazım, eğitim">
+  <meta name="robots" content="index, follow">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="tr_TR">
+  <meta property="og:site_name" content="Kelime Avı">
+  <meta property="og:title" content="Kelime Avı — Türkçe Kelime Bilgisi Alıştırması">
+  <meta property="og:description" content="Harflerden Türkçe sözcük türeterek kelime dağarcığını geliştir; arkadaşlarınla birlikte çalış.">
+  <meta name="twitter:card" content="summary">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": ["WebApplication", "LearningResource"],
+    "name": "Kelime Avı",
+    "description": "Verilen harflerden Türkçe sözcük türeterek kelime dağarcığını geliştirmeye yönelik çok kullanıcılı dil alıştırması.",
+    "inLanguage": "tr",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web",
+    "browserRequirements": "JavaScript gerektirir",
+    "isAccessibleForFree": true,
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
+    "learningResourceType": "Kelime alıştırması",
+    "educationalUse": "Alıştırma",
+    "teaches": "Türkçe kelime bilgisi ve sözcük türetme",
+    "about": { "@type": "Thing", "name": "Türkçe kelime bilgisi" },
+    "audience": { "@type": "EducationalAudience", "educationalRole": "student" }
+  }
+  </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23fff6e0'/%3E%3Ctext x='50' y='73' font-size='66' text-anchor='middle' font-family='Arial' font-weight='900' fill='%232b2147'%3EK%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -43,6 +71,7 @@
           <button id="lobiSes" class="btn ikon hayalet" title="Ses efektleri">🔊</button>
           <button id="lobiMuzik" class="btn ikon hayalet" title="Müzik">🎵</button>
           <button id="linkKopyala" class="btn kucuk">🔗 Davet linkini kopyala</button>
+          <button id="lobiAyril" class="btn kucuk cikis-btn" title="Odadan ayrıl ve giriş ekranına dön">🚪 Ayrıl</button>
         </div>
       </div>
       <div class="lobi-govde">
@@ -209,7 +238,7 @@
         <button id="menuLink" class="btn">🔗 Davet linkini kopyala</button>
         <button id="menuAtla" class="btn sahip-ozel">Seviyeyi bitir</button>
         <button id="menuLobi" class="btn sahip-ozel">Lobiye dön</button>
-        <button id="menuCik" class="btn">Odadan çık</button>
+        <button id="menuCik" class="btn cikis-btn">🚪 Odadan çık</button>
         <button id="menuKapat" class="btn hayalet">Kapat</button>
       </div>
     </div>

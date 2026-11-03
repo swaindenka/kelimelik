@@ -99,7 +99,7 @@ if (urlKod && oku('ka_oda') === urlKod.toUpperCase() && oku('ka_isim')) {
   if (socket.connected) katil(urlKod.toUpperCase()); else socket.once('connect', () => { if (!odaKodu) katil(urlKod.toUpperCase()); });
 }
 $('kodGir').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('katil').click(); });
-$('isim').addEventListener('keydown', (e) => { if (e.key === 'Enter') (urlKod ? $('katil') : $('odaKur')).click(); });
+$('isim').addEventListener('keydown', (e) => { if (e.key === 'Enter') ($('kodGir').value.trim() ? $('katil') : $('odaKur')).click(); });
 
 // Bağlantı koparsa otomatik yeniden katıl
 socket.on('connect', () => {
@@ -112,6 +112,31 @@ socket.on('connect', () => {
   }
 });
 socket.on('disconnect', () => { if (odaKodu) $('baglanti').classList.remove('gizli'); });
+
+// Odadan ayrıl: sunucuya bildir, yerel durumu sıfırla, giriş ekranına dön (sayfa yenilenmez)
+function odadanAyril() {
+  if (!odaKodu) return;
+  if (socket.connected) socket.emit('ayril');
+  odaKodu = null;
+  D = null;
+  kaydet('ka_oda', '');
+  history.replaceState(null, '', location.pathname);
+  akisListesi = []; sohbetListesi = []; oyuncuImza = '';
+  lvKimlik = null; oncekiCan = null; oncekiPuanlar = {}; sonPuanlarim = {};
+  lobiBilinen = new Set(); tahminGecmisi = []; gecmisKonum = -1;
+  sonHamleDuyuru = null; rekorDuyuruldu = false;
+  akisCiz(); sohbetCiz(true);
+  $('menuKatman').classList.add('gizli');
+  sonucKatmani(false);
+  $('sonucAcBtn').classList.add('gizli');
+  $('baglanti').classList.add('gizli');
+  document.body.classList.remove('son-hamle', 'son-saniye');
+  $('tahmin').value = '';
+  $('kodGir').value = '';
+  $('girisHata').textContent = '';
+  ekranGoster('giris');
+  Ses.cal('tikla');
+}
 
 // ---------- Yardımcılar ----------
 function ekranGoster(ad) {
@@ -189,6 +214,7 @@ function rekorGuncelle(zorluk, seviye, puan) {
 
 // ---------- Sunucudan durum ----------
 socket.on('durum', (d) => {
+  if (!odaKodu || d.kod !== odaKodu) return; // ayrıldıktan sonra gelen eski yayınlar
   saatFarki = d.simdi - Date.now();
   const onceki = D;
   D = d;
@@ -244,6 +270,7 @@ function gecisleriIsle(o, d) {
 }
 
 socket.on('akis', (k) => {
+  if (!odaKodu) return;
   akisListesi.push(k);
   if (akisListesi.length > 60) akisListesi.shift();
   akisEkleDom(k);
@@ -271,6 +298,7 @@ socket.on('akis', (k) => {
 });
 
 socket.on('sohbet', (k) => {
+  if (!odaKodu) return;
   sohbetListesi.push(k);
   if (sohbetListesi.length > 80) sohbetListesi.shift();
   sohbetEkleDom(k, k.id === benimId);
@@ -279,6 +307,7 @@ socket.on('sohbet', (k) => {
 });
 
 socket.on('tepki', ({ id, e }) => {
+  if (!odaKodu) return;
   Efekt.emoji(e, ad(id), renk(id));
   Ses.cal('tepki');
 });
@@ -1261,7 +1290,8 @@ $('menuKapat').onclick = () => $('menuKatman').classList.add('gizli');
 $('menuKatman').addEventListener('click', (e) => { if (e.target === $('menuKatman')) $('menuKatman').classList.add('gizli'); });
 $('menuAtla').onclick = () => { socket.emit('atla'); $('menuKatman').classList.add('gizli'); };
 $('menuLobi').onclick = () => { socket.emit('lobi'); $('menuKatman').classList.add('gizli'); };
-$('menuCik').onclick = () => { kaydet('ka_oda', ''); location.href = location.pathname; };
+$('menuCik').onclick = odadanAyril;
+$('lobiAyril').onclick = odadanAyril;
 
 // Seviyeler arası büyük geri sayım
 function buyukSayac(n) {

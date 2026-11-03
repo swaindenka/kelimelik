@@ -85,6 +85,7 @@
               <li>Her harfin bir <b>puanı</b> var (taşın köşesinde). Nadir harf = çok puan. <b>×2 / ×3</b> taşlar o harfin puanını katlar.</li>
               <li>Kelime puanı = harf puanları × uzunluk çarpanı. Uzun kelime çok kazandırır, <b>büyük kelime ×2</b>.</li>
               <li>Süre bitmeden takımca <b>puan hedefine</b> ulaşın, yoksa can gider. Bonus kelimeler de hedefe sayılır.</li>
+              <li><b>⭐ Yıldız = seviye:</b> ★ ile 1, ★★ ile 2, ★★★ ile 3 seviye ilerlersiniz. <b>👑 Patron</b> seviyeleri atlanamaz, atlama orada durur.</li>
               <li><b>🗝️ Hazine kelime</b> tahtada parlar: ×2 puan ve takıma <b>+8 saniye</b>.</li>
               <li><b>⏱ Son hamle:</b> son 10 saniyede bulunan kelimeler ×1.5 puan.</li>
               <li>8 saniye içinde art arda bulursan <b>🔥 seri</b>: her adım kelime puanına +%10.</li>
@@ -119,6 +120,13 @@
               </select>
             </label>
           </div>
+          <label class="ilerleme-ayar">İlerleme
+            <select id="ayarIlerleme">
+              <option value="yildiz">⭐ Yıldız kadar seviye atla</option>
+              <option value="tek">Her geçişte 1 seviye</option>
+            </select>
+          </label>
+          <p id="ilerlemeAciklama" class="zorluk-aciklama"></p>
           <h3>Harf puanları</h3>
           <div class="harf-tablosu" aria-label="Harf puanları">
             <div><b>1</b><span>A E İ K L N R T</span></div>
@@ -219,6 +227,7 @@
           <div id="sonucUst" class="sh-ust"></div>
           <div id="sonucBaslik" class="sonuc-baslik"></div>
           <div id="sonucYildiz" class="sonuc-yildiz"></div>
+          <div id="sonucAtlama" class="sh-atlama gizli"></div>
         </div>
         <div id="sonucDetay" class="sonuc-detay"></div>
         <div id="sonucBen" class="sonuc-ben"></div>

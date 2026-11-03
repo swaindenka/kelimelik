@@ -202,6 +202,8 @@ function afisSonraki() {
   setTimeout(afisSonraki, sure * 0.85);
 }
 
+// Odada "yıldız kadar seviye atla" açık mı
+const yildizAtlar = () => (D?.ayar?.ilerleme || 'yildiz') === 'yildiz';
 // Seviyenin yıldız eşikleri (takım puanı) — sunucu hesaplayıp gönderir
 const esikler = (lv) => lv.esikler || [lv.puanHedef, lv.puanMax, lv.puanMax];
 const uzunlukCarpani = (n) => 1 + (n - 3) * 0.25; // sunucudaki game.js ile aynı
@@ -338,7 +340,11 @@ function lobiCiz() {
   $('oyuncuSayi').textContent = D.oyuncular.filter((p) => p.bagli).length;
   $('ayarSure').value = D.ayar.sure;
   $('ayarCan').value = D.ayar.can;
-  $('ayarSure').disabled = $('ayarCan').disabled = !sahibim();
+  $('ayarIlerleme').value = D.ayar.ilerleme || 'yildiz';
+  $('ilerlemeAciklama').textContent = yildizAtlar()
+    ? '★ +1 · ★★ +2 · ★★★ +3 seviye · 👑 patron seviyeleri atlanamaz'
+    : 'Kaç yıldız alınırsa alınsın bir sonraki seviyeye geçilir';
+  $('ayarSure').disabled = $('ayarCan').disabled = $('ayarIlerleme').disabled = !sahibim();
   const z = D.ayar.zorluk || 'normal';
   for (const b of $('zorlukSecim').children) {
     b.classList.toggle('secili', b.dataset.zorluk === z);
@@ -353,8 +359,8 @@ function lobiCiz() {
   $('baslat').classList.toggle('gizli', !sahibim());
   $('bekle').classList.toggle('gizli', sahibim());
 }
-$('ayarSure').onchange = $('ayarCan').onchange = () =>
-  socket.emit('ayar', { sure: Number($('ayarSure').value), can: Number($('ayarCan').value) });
+$('ayarSure').onchange = $('ayarCan').onchange = $('ayarIlerleme').onchange = () =>
+  socket.emit('ayar', { sure: Number($('ayarSure').value), can: Number($('ayarCan').value), ilerleme: $('ayarIlerleme').value });
 $('baslat').onclick = () => socket.emit('baslat');
 
 const ZORLUK_ACIKLAMA = {
@@ -457,7 +463,7 @@ function ustBarCiz(lv, yeniLv) {
     const s = document.createElement('span');
     s.className = 'yildiz-isaret' + (puan >= e || (k === 2 && bulunan === t) ? ' dolu' : '') + (k === 2 ? ' son' : '');
     s.style.left = Math.min(100, 100 * e / ust) + '%';
-    s.title = `${'★'.repeat(k + 1)}: ${e} puan`;
+    s.title = `${'★'.repeat(k + 1)}: ${e} puan${yildizAtlar() ? ` · +${k + 1} seviye` : ''}`;
     s.textContent = '★';
     const etiket = document.createElement('small'); etiket.textContent = e;
     s.appendChild(etiket);
@@ -488,14 +494,14 @@ function ustBarCiz(lv, yeniLv) {
     }
     if (oncekiTakimPuan < es[0] && puan >= es[0]) {
       if (patron) {
-        afis('👑 PATRON YENİLDİ!', 'Seviye garanti · şimdi yıldız toplayın', 'tur-patron', 'patronYenildi');
+        afis('👑 PATRON YENİLDİ!', yildizAtlar() ? 'Seviye garanti · ★★ = +2, ★★★ = +3 seviye' : 'Seviye garanti · şimdi yıldız toplayın', 'tur-patron', 'patronYenildi');
         Efekt.flas('rgba(255,93,115,.3)');
         Efekt.konfetiYagmuru(false);
       } else {
-        afis('Puan hedefi aşıldı! ★', 'Seviye garanti, şimdi yıldız topla', 'yesil', ['yildiz', 0]);
+        afis('Puan hedefi aşıldı! ★', yildizAtlar() ? `+1 seviye garanti · ★★ için ${es[1] - puan} puan daha = +2 seviye` : 'Seviye garanti, şimdi yıldız topla', 'yesil', ['yildiz', 0]);
       }
     } else if (oncekiTakimPuan < es[1] && puan >= es[1] && puan < es[2]) {
-      afis('★★ İki yıldız!', `Üç yıldız için ${es[2] - puan} puan kaldı`, 'altin', ['yildiz', 1]);
+      afis(yildizAtlar() ? '★★ +2 SEVİYE!' : '★★ İki yıldız!', `Üç yıldız${yildizAtlar() ? ' (+3 seviye)' : ''} için ${es[2] - puan} puan kaldı`, 'altin', ['yildiz', 1]);
     }
   }
   oncekiTakimPuan = puan;
@@ -1133,6 +1139,21 @@ function sonucMetinleri(r) {
   return { tur, ust, amblem: '✕', baslik: 'Seviye başarısız', alt: `Hedefe ${Math.max(0, r.puanHedef - r.takimPuan)} puan kaldı · ${puan}` };
 }
 
+// Geçilen seviyede kaç seviye atlandığı ve açıklaması (yıldız kadar ilerleme)
+function atlamaBilgisi(r) {
+  if (!r.gecti || !r.sonraki) return null;
+  const n = r.atlama || 1;
+  const hedef = `Seviye ${r.sonraki.seviye}`;
+  let alt;
+  if (r.patronKapisi) alt = `${hedef} · 👑 patron seviyesi atlanamaz`;
+  else if (r.ilerleme === 'tek') alt = hedef;
+  else if (r.yildiz < 3 && r.esikler) {
+    const eksik = Math.max(0, r.esikler[r.yildiz] - r.takimPuan);
+    alt = `${hedef} · ${'★'.repeat(r.yildiz + 1)} için ${eksik} puan eksikti`;
+  } else alt = `${hedef} · tam isabet!`;
+  return { n, alt };
+}
+
 function turSonuGoster(r, d) {
   const el = $('turSonu');
   const m = sonucMetinleri(r);
@@ -1160,6 +1181,16 @@ function turSonuGoster(r, d) {
       y.appendChild(s);
     }
     roz.appendChild(y);
+    const at = atlamaBilgisi(r);
+    if (at) {
+      const a = document.createElement('div'); a.className = 'ts-atlama' + (at.n >= 3 ? ' uc' : at.n === 2 ? ' iki' : '');
+      a.innerHTML = '<b></b><span></span>';
+      a.querySelector('b').textContent = `+${at.n} SEVİYE`;
+      a.querySelector('span').textContent = at.alt;
+      a.style.setProperty('--gecikme', (650 + r.yildiz * 260 + 120) + 'ms');
+      roz.appendChild(a);
+      if (at.n > 1) setTimeout(() => { if (turSonuAcik()) Ses.cal('bonus'); }, 650 + r.yildiz * 260 + 200);
+    }
     if (r.canKazanildi) { const c = document.createElement('div'); c.className = 'ts-pill iyi'; c.textContent = '+1 ♥ can kazandınız'; roz.appendChild(c); }
   } else {
     const azami = d.ayar?.can || 0;
@@ -1223,6 +1254,14 @@ function sonucCiz(durumDegisti) {
   $('sonucUst').textContent = `Seviye ${r.seviye} · ${m.ust}`;
   $('sonucBaslik').textContent = m.baslik;
   $('sonucBaslik').className = 'sonuc-baslik ' + (r.gecti ? 'iyi' : 'kotu');
+  const at = atlamaBilgisi(r);
+  $('sonucAtlama').classList.toggle('gizli', !at);
+  if (at) {
+    $('sonucAtlama').className = 'sh-atlama' + (at.n >= 3 ? ' uc' : at.n === 2 ? ' iki' : '');
+    $('sonucAtlama').innerHTML = '<b></b><span></span>';
+    $('sonucAtlama').querySelector('b').textContent = `+${at.n} seviye`;
+    $('sonucAtlama').querySelector('span').textContent = at.alt;
+  }
 
   // Yıldızlar: durum yeni değiştiyse tek tek yansın
   const yk = $('sonucYildiz');
@@ -1317,6 +1356,12 @@ function sonucCiz(durumDegisti) {
     sn.appendChild(ust);
     if (r.sonraki.aciklama) { const a = document.createElement('small'); a.textContent = r.sonraki.aciklama; sn.appendChild(a); }
     if (!r.gecti) { const a = document.createElement('small'); a.textContent = 'Aynı seviye yeni harflerle tekrar'; sn.appendChild(a); }
+    else if (r.atlama > 1) {
+      const atlanan = Array.from({ length: r.atlama - 1 }, (_, i) => r.seviye + 1 + i);
+      const a = document.createElement('small');
+      a.textContent = `${'★'.repeat(r.yildiz)} ile ${r.atlama} seviye ilerlediniz · atlanan: ${atlanan.join(', ')}`;
+      sn.appendChild(a);
+    }
   }
 
   const btn = $('sonucButonlar');

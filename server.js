@@ -16,6 +16,7 @@ const BONUS_ORAN = 0.4;      // tahtada olmayan sözlük kelimesi, tahta kelimes
 const SERI_UST = 5;          // en fazla kaç adım bonus verilir
 const IPUCU_HAKKI = 3;       // seviye başına oda genelinde ipucu hakkı
 const IPUCU_BEDEL = 25;      // ipucu alanın puanından düşülür
+const PATRON_ARALIK = 10;    // patron seviyeleri (10, 20, …) yıldızla atlanamaz
 const TEPKILER = ['👏', '🔥', '😂', '😮', '😭', '❤️', '👍', '🎉'];
 const RENKLER = ['#ff6b6b', '#4dabf7', '#51cf66', '#fcc419', '#cc5de8', '#ff922b', '#20c997', '#f06595', '#94d82d', '#748ffc', '#e599f7', '#66d9e8'];
 
@@ -43,7 +44,7 @@ function yeniOda(sahipId) {
     kod: odaKoduUret(),
     sahip: sahipId,
     oyuncular: new Map(),
-    ayar: { sure: 100, can: 3, zorluk: 'normal' },
+    ayar: { sure: 100, can: 3, zorluk: 'normal', ilerleme: 'yildiz' }, // ilerleme: 'yildiz' (yıldız kadar seviye) | 'tek'
     durum: 'lobi', // lobi | oyun | sonuc | bitti
     seviye: 1,
     can: 3,
@@ -242,10 +243,23 @@ function seviyeBitir(oda, neden = 'sure') {
     zorluk: lv.zorluk,
     canKazanildi: false,
     oduller: odulleriHesapla(oda, lv),
+    esikler: esikler(lv),
+    ilerleme: oda.ayar.ilerleme,
+    atlama: 0,
   };
 
   if (gecti) {
-    oda.seviye += 1;
+    // Yıldız kadar ilerle: ★ +1, ★★ +2, ★★★ +3 seviye. Patron seviyeleri atlanamaz:
+    // atlama bir sonraki patron seviyesinde durur (patron ve +1 can ödülü kaçmasın).
+    const istenen = oda.ayar.ilerleme === 'tek' ? 1 : yld;
+    const patronKapisi = Math.floor(oda.seviye / PATRON_ARALIK) * PATRON_ARALIK + PATRON_ARALIK;
+    const hedef = Math.min(oda.seviye + istenen, patronKapisi);
+    Object.assign(oda.sonSonuc, {
+      atlama: hedef - oda.seviye,
+      istenenAtlama: istenen,
+      patronKapisi: hedef < oda.seviye + istenen,
+    });
+    oda.seviye = hedef;
     // Patron seviyesini geçmek bir can kazandırır
     if (lv.tur === 'patron' && oda.ayar.can > 0 && oda.can < oda.ayar.can) {
       oda.can += 1;
@@ -265,7 +279,9 @@ function seviyeBitir(oda, neden = 'sure') {
   oda.bitis = Date.now() + SONUC_SURESI;
   akisEkle(oda, {
     tur: 'sistem',
-    metin: gecti ? `Seviye geçildi! ${'★'.repeat(yld)} (${lv.takimPuan}/${lv.puanHedef} puan)` : `Seviye başarısız (${lv.takimPuan}/${lv.puanHedef} puan)`,
+    metin: gecti
+      ? `Seviye geçildi! ${'★'.repeat(yld)} (${lv.takimPuan}/${lv.puanHedef} puan)${oda.sonSonuc.atlama > 1 ? ` · +${oda.sonSonuc.atlama} seviye` : ''}`
+      : `Seviye başarısız (${lv.takimPuan}/${lv.puanHedef} puan)`,
   });
   yayinla(oda);
   if (!oda.sonSonuc.oyunBitti) {
@@ -391,6 +407,7 @@ io.on('connection', (socket) => {
     if ([60, 80, 100, 120, 150, 180].includes(sure)) oda.ayar.sure = sure;
     if ([0, 1, 3, 5].includes(can)) oda.ayar.can = can;
     if (a && Object.hasOwn(ZORLUKLAR, a.zorluk)) oda.ayar.zorluk = a.zorluk;
+    if (a && ['yildiz', 'tek'].includes(a.ilerleme)) oda.ayar.ilerleme = a.ilerleme;
     yayinla(oda);
   });
 

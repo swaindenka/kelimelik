@@ -119,6 +119,8 @@ h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5p
 .rozet { margin-left: auto; font-size: 11px; color: var(--vurgu); border: 1px solid var(--vurgu); border-radius: 20px; padding: 2px 8px; white-space: nowrap; }
 .cevrimdisi { opacity: .45; }
 .ayar-satir { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ilerleme-ayar { margin-top: 2px; }
+.ilerleme-ayar select { width: 100%; }
 .zorluk-secim { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .zorluk-secim button {
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 4px; cursor: pointer;
@@ -784,6 +786,35 @@ body.tur-sonu-acik .son-sayac, body.sonuc-acik .son-sayac { display: none; }
 .ts-pill.kotu { color: #ffd0d7; background: rgba(255, 93, 115, .13); border: 1px solid rgba(255, 93, 115, .4); }
 .ts-gec { color: var(--soluk); font-size: 12px; letter-spacing: .5px; opacity: .6; animation: tsGir 1s ease-out 1.6s both; }
 body.tur-sonu-acik .afisler { display: none; }
+/* Yıldız kadar seviye atlama rozeti: +1 yeşil, +2 altın, +3 parlayan altın */
+.ts-atlama {
+  --r1: #4ade80; --r2: #22c55e; --golge: 74, 222, 128;
+  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 22px 9px; border-radius: 16px; color: #062b14;
+  background: linear-gradient(180deg, var(--r1), var(--r2));
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .28), 0 0 30px rgba(var(--golge), .55);
+  animation: tsAtlama .6s cubic-bezier(.3, 1.7, .5, 1) var(--gecikme, 1.4s) both;
+}
+.ts-atlama.iki, .ts-atlama.uc { --r1: #ffe28a; --r2: #ff9f2e; --golge: 255, 190, 60; color: #3a2000; }
+.ts-atlama.uc { box-shadow: 0 5px 0 rgba(0, 0, 0, .28), 0 0 46px rgba(255, 200, 61, .85), 0 0 0 3px rgba(255, 255, 255, .5); }
+.ts-atlama b { font-size: clamp(24px, 5vmin, 34px); font-weight: 900; letter-spacing: 2px; line-height: 1; }
+.ts-atlama span { font-size: 12.5px; font-weight: 700; opacity: .8; }
+.ts-atlama::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .7), transparent);
+  animation: tsParilti 1.4s ease-in-out calc(var(--gecikme, 1.4s) + .35s) 2;
+}
+@keyframes tsAtlama { 0% { opacity: 0; transform: scale(.3) translateY(14px); } 100% { opacity: 1; transform: none; } }
+@keyframes tsParilti { to { left: 130%; } }
+/* Sonuç kartındaki küçük hâli */
+.sh-atlama {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 2px; padding: 4px 12px 4px 4px; border-radius: 20px;
+  background: rgba(74, 222, 128, .12); border: 1px solid rgba(74, 222, 128, .45); font-size: 12.5px; color: #c9f7d8;
+}
+.sh-atlama b { padding: 2px 10px; border-radius: 14px; background: linear-gradient(180deg, #4ade80, #22c55e); color: #062b14; font-weight: 900; letter-spacing: .5px; }
+.sh-atlama.iki, .sh-atlama.uc { background: rgba(255, 200, 61, .12); border-color: rgba(255, 200, 61, .5); color: #ffe7a8; }
+.sh-atlama.iki b, .sh-atlama.uc b { background: linear-gradient(180deg, #ffe28a, #ff9f2e); color: #3a2000; }
+.sh-atlama.uc { box-shadow: 0 0 18px rgba(255, 200, 61, .35); }
 
 /* Seviyeler arası büyük geri sayım */
 .buyuk-sayac {
@@ -962,6 +993,7 @@ body.sonuc-acik .afis { transform-origin: top; }
   .sonuc-ac { bottom: calc(86px + env(safe-area-inset-bottom)); }
   /* iOS'ta 16px altındaki girişler odaklanınca sayfayı yakınlaştırıp kaydırır */
   .sohbet-form input { font-size: 16px; }
+  .ts-ust { font-size: 10.5px; letter-spacing: 1.5px; padding: 5px 12px; }
   .son-hamle-rozet { order: 3; font-size: 11px; padding: 4px 9px; }
   .patron-can .pc-ad { display: none; }
   .buyuk-kod { font-size: 38px; }
@@ -994,7 +1026,7 @@ body.sonuc-acik .afis { transform-origin: top; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ts-isinlar, .ts-amblem::before { display: none; }
+  .ts-isinlar, .ts-amblem::before, .ts-atlama::after { display: none; }
   .tur-sonu, .tur-sonu *, .son-sayac.goster, .zaman-cubugu span { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
   .arka-harfler, body.son-saniye::after { display: none; }
   .tas.gizli-harf, .sure.cok-az, .karistir-gosterge .ikon-donen, .slot.hazine .k, .slot .hz-rozet, .son-hamle-rozet, .sonuc-sonraki { animation: none !important; }

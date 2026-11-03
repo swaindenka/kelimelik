@@ -37,6 +37,7 @@ Oda kurduktan sonra lobideki **Davet linkini kopyala** butonuyla linki paylaş. 
 | Kelime puanı | (harf puanları toplamı) × 10 × uzunluk çarpanı × seviye çarpanı. Uzunluk çarpanı: 3 harf ×1, her ek harf +0.25 (10 harf ×2.75). Büyük kelime (tüm harfler) ×2 |
 | Puan hedefi | Seviyeyi geçmek için takımın toplam puanı hedefe ulaşmalı. Hedef, tahtadaki tüm kelimelerin toplam puanının bir oranıdır (seviye ve zorlukla artar). Bonus kelimeler ve seri puanı da hedefe sayılır |
 | Yıldızlar | ★ hedef · ★★ hedef ile tam puanın ortası · ★★★ tam puan ya da bütün kelimeler bulundu |
+| Yıldız = seviye ⭐ | Geçilen seviyede alınan yıldız kadar ilerlenir: ★ +1, ★★ +2, ★★★ +3 seviye. Patron seviyeleri (10, 20, …) atlanamaz; atlama bir sonraki patronda durur. Lobideki **İlerleme** ayarıyla her geçişte 1 seviyeye çevrilebilir |
 | Bonus kelime | Tahtada olmayan ama sözlükte olan kelime: aynı kelime tahtada olsaydı alacağı puanın %40'ı |
 | Hazine kelime 🗝️ | 2. seviyeden itibaren tahtadaki bir kelimenin yeri altın renkte parlar (kelimenin kendisi gizli). Bulan ×2 puan alır, takıma +8 saniye kazandırır |
 | Son hamle ⏱ | Sürenin son 10 saniyesinde bulunan kelimeler (bonuslar da) ×1.5 puan |

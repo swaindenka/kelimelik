@@ -749,39 +749,96 @@ body.sonuc-acik .afis { transform-origin: top; }
 
 /* ---------- Mobil ---------- */
 @media (max-width: 860px) {
-  #oyun.aktif { height: auto; min-height: 100vh; }
-  .oyun-govde { grid-template-columns: minmax(0, 1fr); }
-  .sol, .sag { min-width: 0; }
-  .sol { overflow: visible; padding: 12px; }
+  /* Oyun ekranı görünür alana sabitlenir: sayfa kaymaz, klavye açılınca da yerinde kalır.
+     --vvh / --vv-ust istemcide visualViewport'tan ayarlanır. */
+  body.oyunda { overflow: hidden; overscroll-behavior: none; }
+  #oyun.aktif {
+    position: fixed; left: 0; right: 0; top: var(--vv-ust, 0px);
+    height: var(--vvh, 100dvh); min-height: 0; overflow: hidden;
+  }
+  /* Kayan tek bölme: üstte harfler + tahta (bir ekran boyu), altında skor/akış/sohbet */
+  .oyun-govde { display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .sol, .sag { min-width: 0; flex: none; }
+  .sol { height: 100%; min-height: 280px; overflow: visible; padding: 12px 10px 8px; gap: 8px; }
   .sag { border-left: none; border-top: 1px solid var(--cizgi); }
   .skor-panel { max-height: none; }
   .akis-panel { max-height: 200px; min-height: 120px; }
   .sohbet-yeri { height: 320px; flex: none; }
-  .tahta { flex: none; gap: 10px 10px; overflow: visible; padding: 12px 8px; border-radius: 18px; }
-  .grup { padding: 7px 9px 9px; min-width: 0; }
-  .tur-rozet { order: 2; }
-  .lobi-govde { grid-template-columns: 1fr; }
-  .ust-bar { gap: 10px; padding: 8px 10px; flex-wrap: wrap; }
-  .ilerleme { order: 5; flex-basis: 100%; }
-  .canlar { font-size: 16px; margin-left: auto; }
-  .sahne { padding: 22px 8px 12px; border-radius: 20px; }
-  .harfler { --kenar: 8px; --bosluk: clamp(4px, 1.6cqi, 10px); }
-  .sahne .kose.k1::after, .sahne .kose.k2::after { display: none; }
-  .seri-rozet { font-size: 12px; }
-  .afisler { top: 50%; }
-  .tahmin-form input { font-size: 20px; letter-spacing: 2px; }
-  .tahmin-form .btn.ana { padding: 0 14px; }
-  /* Tahta uzayınca yazma alanı ekranın altında sabit kalsın */
-  .yazma-alani {
-    position: sticky; bottom: 0; z-index: 6; margin: 0 -12px -12px; padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, rgba(18, 16, 42, 0), rgba(18, 16, 42, .94) 28%);
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  /* Tahta kalan alanı doldurur, sığmazsa kendi içinde kayar */
+  .tahta {
+    flex: 1 1 0; min-height: 90px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+    gap: 8px; padding: 10px 6px; border-radius: 16px;
+    align-content: flex-start; align-content: safe center;
   }
+  .grup { padding: 6px 8px 8px; min-width: 0; border-radius: 12px; }
+  .grup-baslik { font-size: 10px; letter-spacing: 1px; height: 16px; }
+  .grup-cizgi { margin: 4px 0 7px; }
+  .grup-govde { gap: 10px; }
+  .lobi-govde { grid-template-columns: 1fr; }
+  /* Üst bar: ses ve müzik menüde var, mobilde gizlenir */
+  #muzikBtn, #sesBtn { display: none; }
+  .ust-bar { gap: 8px 10px; padding: 6px 10px 16px; flex-wrap: wrap; }
+  .seviye-kutu { min-width: 44px; }
+  .seviye-kutu .etiket { font-size: 10px; letter-spacing: 1px; }
+  .seviye-kutu b { font-size: 22px; }
+  .tur-rozet { font-size: 11px; }
+  .ilerleme { order: 5; flex-basis: 100%; gap: 4px; }
+  .ilerleme-yazi { font-size: 13px; }
+  .canlar { font-size: 16px; margin-left: auto; }
+  .sure { width: 44px; height: 44px; }
+  .sure b { font-size: 15px; }
+  .ust-bar .btn.ikon { padding: 7px 10px; font-size: 16px; }
+  .sahne { padding: 20px 8px 8px; gap: 8px; border-radius: 20px; margin-top: 6px; }
+  .harfler { --kenar: 8px; --bosluk: clamp(4px, 1.6cqi, 10px); }
+  /* Taşlar görünür yüksekliğe göre de sınırlanır (klavye açıkken küçülür) */
+  .tas { --b: clamp(24px, min(calc((100cqi - var(--kenar, 40px) - (var(--adet) - 1) * var(--bosluk)) / var(--adet)), calc(var(--vvh, 100vh) * .095)), 104px); }
+  .sahne .kose.k1::after, .sahne .kose.k2::after { display: none; }
+  .sahne-alt { min-height: 30px; }
+  .ipucu-btn { padding: 6px 10px; font-size: 13px; }
+  .seri-rozet { font-size: 12px; }
+  .afisler { top: 40%; }
+  .tahmin-form { gap: 8px; }
+  .tahmin-form input { font-size: 20px; letter-spacing: 2px; padding: 8px 10px; }
+  .tahmin-form .btn.ana { padding: 0 14px; }
+  .tahmin-form .btn.ikon { padding: 8px 11px; }
+  /* Yazma alanı kayan bölmenin dışında, ekranın en altında (klavyenin hemen üstünde) */
+  .yazma-alani {
+    flex: none; gap: 4px; padding: 6px 10px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(18, 16, 42, .96); border-top: 1px solid var(--cizgi); position: relative; z-index: 6;
+  }
+  .yazma-ust { min-height: 20px; }
+  .sonuc-ac { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  /* iOS'ta 16px altındaki girişler odaklanınca sayfayı yakınlaştırıp kaydırır */
+  .sohbet-form input { font-size: 16px; }
   .son-hamle-rozet { order: 3; font-size: 11px; padding: 4px 9px; }
   .patron-can .pc-ad { display: none; }
   .buyuk-kod { font-size: 38px; }
   .afis b { font-size: 22px; }
   .afis.seviye b { font-size: 30px; }
+
+  /* ---------- Klavye açık: sıkışık düzen ---------- */
+  body.klavye .ust-bar { flex-wrap: nowrap; padding: 4px 10px 6px; gap: 8px; }
+  body.klavye .tur-rozet, body.klavye .canlar, body.klavye .seviye-kutu .etiket,
+  body.klavye .ilerleme-yazi small, body.klavye .yildiz-isaret small { display: none; }
+  body.klavye .seviye-kutu { min-width: 0; }
+  body.klavye .seviye-kutu b { font-size: 18px; }
+  body.klavye .ilerleme { order: 0; flex: 1 1 auto; flex-basis: auto; gap: 3px; }
+  body.klavye .ilerleme-yazi { font-size: 12px; }
+  body.klavye .ilerleme-bar { height: 8px; }
+  body.klavye .yildiz-isaret { font-size: 13px; }
+  body.klavye .sure { width: 36px; height: 36px; }
+  body.klavye .sure b { font-size: 13px; }
+  body.klavye .ust-bar .btn.ikon { padding: 5px 9px; font-size: 15px; }
+  body.klavye .sol { padding: 8px 10px 6px; gap: 6px; min-height: 200px; }
+  body.klavye .sahne { padding: 10px 6px 6px; gap: 4px; margin-top: 0; border-width: 2px; }
+  body.klavye .sahne-baslik, body.klavye .karistir-gosterge, body.klavye .sahne .kose { display: none; }
+  body.klavye .raf { padding-bottom: 8px; }
+  body.klavye .raf::after { height: 10px; }
+  body.klavye .sahne-alt { display: none; }
+  body.klavye .bonus-satir { display: none; }
+  body.klavye .tahta { min-height: 70px; }
+  body.klavye .yazma-alani { padding-bottom: 6px; }
+  body.klavye .yazma-ust { min-height: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

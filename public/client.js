@@ -42,6 +42,7 @@ let sonHamleDuyuru = null;  // son hamle afişi hangi seviyede gösterildi
 let rekorDuyuruldu = false;
 let oyunBasiRekor = 0;      // oyun başındaki rekor (yalnızca bunu aşınca duyurulur)
 const KARISTIR_PERIYOT = 10; // harfler kaç saniyede bir kendiliğinden karışır
+const FIRTINA_PERIYOT = 3.5; // fırtına turunda (yazarken de)
 
 // ---------- Arka plan süsü ----------
 (function arkaHarfler() {
@@ -267,6 +268,10 @@ function gecisleriIsle(o, d) {
     if (lv.tahta.some((s) => s.hz)) notlar.push('🗝️ hazine kelime');
     if (lv.gizliVar) notlar.push('gizli harf var');
     if (lv.sahteVar) notlar.push('dikkat: bir harf sahte!');
+    if (lv.harfler.some((h) => h.buz)) notlar.push(`❄️ buzlu harf (${lv.buzKalan} kelimede çözülür)`);
+    if (lv.harfler.some((h) => h.bomba)) notlar.push(`💣 bomba harf: ${Math.round((lv.bombaBitis - simdi()) / 1000)} sn içinde kullanın`);
+    const kb = lv.kalabalik;
+    if (kb?.n > 1 && lv.tabanHedef) notlar.push(`👥 ${kb.n} kişi: hedef +%${Math.round((lv.puanHedef / lv.tabanHedef - 1) * 100)}`);
     afis(`Seviye ${d.seviye}`, notlar.join(' · '), 'seviye', 'basla');
     if (lv.turAd) afis(`${lv.turIkon} ${lv.turAd}`, lv.turAciklama, 'tur-' + lv.tur, lv.tur === 'patron' ? 'patronVurus' : 'bonus');
   }
@@ -309,6 +314,36 @@ socket.on('akis', (k) => {
     afis('Gizli harf açıldı!', '', 'mor', 'gizli');
   } else if (k.olay === 'sahte') {
     afis('Sahte harf ortaya çıktı!', 'Üstü çizili harfi kullanma', 'kirmizi', 'sahte');
+  } else if (k.olay === 'gorevTamam') {
+    Ses.cal('odul', 2);
+    setTimeout(() => Ses.cal('odul', 4), 140);
+    afis('🎯 Görev tamam!', `${ad(k.id)} · +${k.puan} puan`, 'tur-gorev');
+  } else if (k.olay === 'zar') {
+    Ses.cal('zar');
+    // Çarpanı değişen taşlar zıplar; sahnede kısa bir yazı
+    setTimeout(() => {
+      (D?.lv?.harfler || []).forEach((h, i) => { if (h.x > 1 && taslar[i]) yenidenOynat(taslar[i], 'zar-atildi'); });
+      const m = merkez($('sahne'));
+      Efekt.ucanYazi(m.x, m.r.top + 30, '🎲 Yeni çarpanlar!', '#f783ac', 'buyuk');
+    }, 60);
+  } else if (k.olay === 'buzCatlak') {
+    Ses.cal('buzCatlak');
+    const t = taslar[D?.lv?.harfler.findIndex((h) => h.buz)];
+    if (t) yenidenOynat(t, 'catla');
+  } else if (k.olay === 'buzCozuldu') {
+    Ses.cal('buzCozuldu');
+    afis('❄️ Buz çözüldü!', 'Buzlu harf artık kullanılabilir', 'buz');
+  } else if (k.olay === 'bombaImha') {
+    Ses.cal('imha');
+    afis('💣 Bomba imha edildi!', `${ad(k.id)} · +${k.puan} puan`, 'yesil');
+  } else if (k.olay === 'bombaPatladi') {
+    Ses.cal('patlama');
+    titret([120, 60, 220]);
+    afis('💥 BOMBA PATLADI!', '−10 saniye', 'kirmizi');
+    Efekt.flas('rgba(255,80,60,.35)');
+    yenidenOynat($('sahne'), 'sarsil');
+    const t = taslar[D?.lv?.harfler.findIndex((h) => h.patladi)];
+    if (t) { const m = merkez(t); Efekt.patlama(m.x, m.y, '#ff6b3d', 40); }
   } else if (k.olay === 'hepsi') {
     afis('MÜKEMMEL!', 'Bütün kelimeler bulundu', 'altin');
   } else if (k.olay === 'hazine') {
@@ -349,6 +384,10 @@ function lobiCiz() {
     $('lobiOyuncular').appendChild(li);
   }
   $('oyuncuSayi').textContent = D.oyuncular.filter((p) => p.bagli).length;
+  const kb = D.kalabalik;
+  $('kalabalikSatir').textContent = kb && kb.n > 1
+    ? `👥 ${kb.n} oyuncu · kalabalık dengesi: hedef ×${kb.hedef} · süre ×${kb.sure} · tahtada daha çok kelime`
+    : '👤 Tek oyuncu · arkadaş geldikçe hedef büyür, süre kısalır';
   $('ayarSure').value = D.ayar.sure;
   $('ayarCan').value = D.ayar.can;
   $('ayarIlerleme').value = D.ayar.ilerleme || 'yildiz';
@@ -435,6 +474,7 @@ function oyunCiz(durumDegisti) {
   }
   ustBarCiz(lv, yeniLv);
   bonusCiz(lv);
+  turSeritCiz(lv);
   tahtaCiz(lv);
   alanOlcu();
   taslariGuncelle(lv);
@@ -644,12 +684,23 @@ function tahtaCiz(lv) {
     const anahtar = `${lv.kimlik}:${innerWidth}x${innerHeight}`;
     if (masaustuOlcu.anahtar === anahtar) ({ kutu, kap: satirKapasite } = masaustuOlcu);
     else {
-      bul: for (let k = 62; k >= 20; k--) {
+      let bulundu = false;
+      bul: for (let k = 62; k >= 16; k--) {
         const enCok = Math.max(1, Math.floor((H - GRUP_DIKEY + SATIR_ARA) / (k + SATIR_ARA)));
         for (let kap = enCok; kap >= 1; kap--) {
-          if (sigar(k, kap)) { kutu = k; satirKapasite = kap; break bul; }
+          if (sigar(k, kap)) { kutu = k; satirKapasite = kap; bulundu = true; break bul; }
         }
-        satirKapasite = Math.max(2, enCok);
+      }
+      if (!bulundu) {
+        // Hiçbir boyutta sığmıyor (çok kelimeli, kalabalık seviye): küçük kutularla en kısa düzen;
+        // tahta kendi içinde kayar
+        kutu = 18;
+        const enCokAdet = Math.max(...uzunluklar.map((u) => gruplar[u].length));
+        let enIyi = Infinity;
+        for (let kap = 1; kap <= enCokAdet; kap++) {
+          const y = toplamYukseklik(kutu, kap);
+          if (y < enIyi) { enIyi = y; satirKapasite = kap; }
+        }
       }
       masaustuOlcu = { anahtar, kutu, kap: satirKapasite };
     }
@@ -794,7 +845,7 @@ function taslariKur(lv) {
     b.type = 'button';
     b.className = 'tas';
     // Taş: harf + köşede harf puanı + (varsa) çarpan rozeti
-    b.innerHTML = '<span class="h"></span><span class="d"></span><span class="x"></span>';
+    b.innerHTML = '<span class="h"></span><span class="d"></span><span class="x"></span><span class="f"></span>';
     b.addEventListener('click', () => tasTikla(i));
     return b;
   });
@@ -811,23 +862,28 @@ function taslariKur(lv) {
 function eslestir(lv, metin) {
   const kullanilan = new Set();
   let gecersiz = false;
-  let toplam = 0, bilinmeyen = false;
+  let toplam = 0, bilinmeyen = false, buzGerekli = false;
   for (const ch of trKucuk(metin)) {
     if (/\s/.test(ch)) continue;
     // Aynı harften birden fazla taş varsa çarpanı yüksek olan önce kullanılır (sunucudaki hesapla aynı)
     let i;
     for (const k of harfSirasi) {
       const h = lv.harfler[k];
-      if (!kullanilan.has(k) && !h.sahte && h.ch === ch && (i === undefined || h.x > lv.harfler[i].x)) i = k;
+      if (!kullanilan.has(k) && !h.sahte && !h.buz && h.ch === ch && (i === undefined || h.x > lv.harfler[i].x)) i = k;
     }
     // Henüz açılmamış gizli harf her harfin yerine geçebilir
     if (i === undefined) i = harfSirasi.find((k) => !kullanilan.has(k) && lv.harfler[k].ch === '?');
-    if (i === undefined) { gecersiz = true; continue; }
+    if (i === undefined) {
+      gecersiz = true;
+      // Harf yalnızca buzlu taşta varsa yazan oyuncuya nedeni söylenir
+      if (lv.harfler.some((h) => h.buz && h.ch === ch)) buzGerekli = true;
+      continue;
+    }
     kullanilan.add(i);
     const h = lv.harfler[i];
     if (h.d == null) bilinmeyen = true; else toplam += h.d * (h.x || 1);
   }
-  return { kullanilan, gecersiz, toplam, bilinmeyen };
+  return { kullanilan, gecersiz, toplam, bilinmeyen, buzGerekli };
 }
 
 // Yazılan kelime tahtaya girerse kaç puan getirir? (seri bonusu ve hazine hariç)
@@ -838,8 +894,9 @@ function tahminiPuan(lv, metin) {
   if (gecersiz || n < lv.minHarf) return null;
   const buyuk = n === lv.buyukUzunluk ? 2 : 1;
   const hamle = sonHamleMi() ? lv.sonHamleCarpan || 1.5 : 1;
+  const zincir = lv.zincir?.harf && w[0] === lv.zincir.harf ? 2 : 1;
   const puan = Math.max(1, Math.round(toplam * PUAN_OLCEK * uzunlukCarpani(n) * buyuk * (lv.puanCarpan || 1)));
-  return { puan: Math.round(puan * hamle), yaklasik: bilinmeyen, buyuk: buyuk > 1, hamle: hamle > 1 };
+  return { puan: Math.round(puan * hamle * zincir), yaklasik: bilinmeyen, buyuk: buyuk > 1, hamle: hamle > 1, zincir: zincir > 1 };
 }
 
 function taslariGuncelle(lv) {
@@ -866,6 +923,19 @@ function taslariGuncelle(lv) {
     const sahteOldu = !!h.sahte && !t.classList.contains('sahte');
     t.classList.toggle('sahte', !!h.sahte);
     if (sahteOldu && oynaniyor) yenidenOynat(t, 'sallan');
+    // Buzlu taş: kullanılamaz; çözülünce kırılma animasyonu
+    const buzVardi = t.classList.contains('buzlu');
+    t.classList.toggle('buzlu', !!h.buz);
+    if (buzVardi && !h.buz && h.buzCozuldu && oynaniyor) yenidenOynat(t, 'buz-kirildi');
+    // Bomba taş: fitil sayacı zamanlayıcıda güncellenir; imha / patlama animasyonu bir kez
+    const bombaVardi = t.classList.contains('bomba');
+    t.classList.toggle('bomba', !!h.bomba);
+    t.classList.toggle('patladi', !!h.patladi);
+    if (bombaVardi && !h.bomba && oynaniyor) yenidenOynat(t, h.patladi ? 'patlama' : 'imha');
+    if (h.buz) t.querySelector('.f').textContent = lv.buzKalan; // kaç kelime sonra çözülecek
+    else if (!h.bomba) t.querySelector('.f').textContent = '';
+    if (h.buz) t.title = `❄️ Buzlu harf: ${lv.buzKalan} kelime daha bulununca çözülür`;
+    else if (h.bomba) t.title = `💣 Bomba harf: bu harfi içeren bir kelime bulun, yoksa patlar (−10 sn)`;
     t.classList.toggle('kullanildi', kullanilan.has(i));
     // Yeni kullanılan taş küçük bir zıplamayla rafa iner
     if (kullanilan.has(i) && !oncekiKullanilan.has(i) && !azHareket) {
@@ -886,14 +956,21 @@ function girdiDurumu(lv) {
   onizleme.textContent = '';
   if (!metin || /\s/.test(metin) || metin.startsWith('/') || D.durum !== 'oyun') return;
   const w = trKucuk(metin);
-  if (eslestir(lv, metin).gecersiz) el.classList.add('gecersiz');
+  const es = eslestir(lv, metin);
+  if (es.gecersiz) {
+    el.classList.add('gecersiz');
+    if (es.buzGerekli) {
+      onizleme.textContent = `❄️ buzlu harf · ${lv.buzKalan} kelime sonra çözülür`;
+      onizleme.classList.add('goster', 'buz');
+    }
+  }
   else if (lv.tahta.some((s) => s.w === w) || lv.bonus.some((b) => b.w === w)) el.classList.add('zaten');
   else if ([...w].length >= lv.minHarf) {
     el.classList.add('hazir');
     // Canlı puan önizlemesi: bu kelime tahtadaysa kaç puan getirir
     const t = tahminiPuan(lv, metin);
     if (t) {
-      onizleme.textContent = `${t.yaklasik ? '≈ ' : ''}${t.puan} puan${t.hamle ? ' ⏱' : ''}${t.buyuk ? ' · büyük kelime!' : ''}`;
+      onizleme.textContent = `${t.yaklasik ? '≈ ' : ''}${t.puan} puan${t.zincir ? ' 🔗×2' : ''}${t.hamle ? ' ⏱' : ''}${t.buyuk ? ' · büyük kelime!' : ''}`;
       onizleme.classList.add('goster');
       if (t.buyuk) onizleme.classList.add('altin');
       if (t.hamle) onizleme.classList.add('hamle');
@@ -912,6 +989,12 @@ function tasTikla(i) {
   const h = lv?.harfler[i];
   if (!h || D.durum !== 'oyun') return;
   const t = taslar[i];
+  if (h.buz) {
+    yenidenOynat(t, 'sallan');
+    Ses.cal('zaten');
+    geriBildirim(`❄️ Buzlu harf — ${lv.buzKalan} kelime daha bulununca çözülür`, 'notr');
+    return;
+  }
   if (h.sahte || h.ch === '?' || eslestir(lv, $('tahmin').value).kullanilan.has(i)) {
     yenidenOynat(t, 'sallan');
     Ses.cal('zaten');
@@ -1024,6 +1107,42 @@ function bonusCiz(lv) {
   bonusSayisi = toplam;
 }
 
+// Seviye türüne özel bilgi şeridi (zincir harfi, görevler, zar sayacı, fırtına).
+// Seviye boyunca görünür kalır; tahta ölçülmeden önce çizilir ki tahta kaymasın.
+function turSeritCiz(lv) {
+  const el = $('turSerit');
+  const tur = lv.tur;
+  el.classList.toggle('gizli', !['zincir', 'gorev', 'zar', 'firtina'].includes(tur));
+  el.dataset.tur = tur;
+  $('karistirYazi').textContent = tur === 'firtina' ? `${String(FIRTINA_PERIYOT).replace('.', ',')} sn` : `${KARISTIR_PERIYOT} sn`;
+  if (tur === 'zincir') {
+    const z = lv.zincir || {};
+    el.innerHTML = '';
+    if (!z.harf) {
+      el.textContent = '🔗 İlk kelimeyi bulun: son harfi zinciri başlatır';
+    } else {
+      el.append('🔗 Sıradaki: ');
+      const b = document.createElement('b'); b.className = 'zincir-harf'; b.textContent = trBuyuk(z.harf) + '…';
+      el.append(b, ` ile başlayan kelime ×2`);
+      if (z.n >= 2) { const n = document.createElement('span'); n.className = 'zincir-n'; n.textContent = `zincir ×${z.n}`; el.append(' · ', n); }
+    }
+  } else if (tur === 'gorev') {
+    el.innerHTML = '';
+    for (const g of lv.gorevler || []) {
+      const c = document.createElement('span');
+      c.className = 'gorev' + (g.tamam ? ' tamam' : '');
+      // Dar ekranda kısa etiket (üç görev tek satıra sığsın); tam metin ipucunda
+      c.textContent = innerWidth < 860 ? `${g.tamam ? '✓' : '🎯'} ${g.kisa || g.metin} ${g.ilerleme}/${g.hedef}` : `${g.tamam ? '✓' : '🎯'} ${g.ilerleme}/${g.hedef} ${g.metin}`;
+      c.title = `${g.hedef > 1 ? g.hedef + ' ' : ''}${g.metin} · ödül: +${g.odul} puan`;
+      el.appendChild(c);
+    }
+  } else if (tur === 'zar') {
+    el.innerHTML = '🎲 Çarpanlar yeniden atılıyor · sonraki zar: <b class="zar-sn"></b> sn';
+  } else if (tur === 'firtina') {
+    el.textContent = '🌪️ Harfler durmadan karışıyor — yazarken bile';
+  }
+}
+
 function ipucuCiz(lv) {
   const b = $('ipucuBtn');
   b.querySelector('.say').textContent = lv.ipucuKalan ?? 0;
@@ -1078,7 +1197,7 @@ function akisOgesi(k) {
     const w = document.createElement('span'); w.className = 'w'; w.textContent = trBuyuk(k.w);
     w.style.setProperty('--renk', renk(k.id));
     const pt = document.createElement('span'); pt.className = 'pt';
-    pt.textContent = ` +${k.puan}${k.seri >= 2 ? ` 🔥${k.seri}` : ''}${k.buyuk ? ' ★' : ''}${k.hazine ? ' 🗝️' : ''}${k.sonHamle ? ' ⏱' : ''}`;
+    pt.textContent = ` +${k.puan}${k.seri >= 2 ? ` 🔥${k.seri}` : ''}${k.buyuk ? ' ★' : ''}${k.hazine ? ' 🗝️' : ''}${k.sonHamle ? ' ⏱' : ''}${k.sureEk ? ` ⏳+${Math.round(k.sureEk / 1000)}` : ''}${k.zincir ? ` 🔗${k.zincir}` : ''}`;
     li.append(w, pt);
   } else return null;
   return li;
@@ -1459,6 +1578,7 @@ const mesajlar = {
   zaten: (c) => `${trBuyuk(c.w)} zaten bulundu (${ad(c.bulan)})`,
   zatenBonus: (c) => `${trBuyuk(c.w)} zaten bonus olarak bulundu`,
   yavas: () => 'Biraz yavaş :)',
+  buz: (c) => `❄️ ${trBuyuk(c.ch)} buzlu — ${c.kalan} kelime daha bulununca çözülür`,
 };
 let bildirimZaman;
 function geriBildirim(metin, tur) {
@@ -1496,20 +1616,33 @@ $('tahminForm').addEventListener('submit', (e) => {
   socket.emit('tahmin', metin, tahminSonucu);
 });
 
+// Kum saati: kazanılan süre yazma alanından süre halkasına uçar
+function kumSaatiUcur(ms) {
+  const sure = $('sure');
+  if (!gorunur(sure)) return;
+  const m = merkez($('tahmin')), h = merkez(sure);
+  Ses.cal('zamanEk');
+  Efekt.uc(m.x, m.r.top, h.x, h.y, `+${Math.round(ms / 1000)} sn`, '#4ade80', () => yenidenOynat(sure, 'uzadi'), 'sure-ek');
+}
+
 function tahminSonucu(c) {
   const sahne = $('sahne');
   if (c.tur === 'yeni') {
     sonPuanlarim[c.w] = c.puan;
     Ses.cal(c.buyuk ? 'buyuk' : 'dogru');
     Ses.cal('puan', Math.round(c.puan / 60));
-    const ekler = [c.buyuk && 'BÜYÜK KELİME!', c.hazine && '🗝️ HAZİNE', c.sonHamle && '⏱ ×1.5'].filter(Boolean);
+    const gorevOdul = (c.gorev || []).reduce((t, x) => t + x, 0);
+    const ekler = [c.buyuk && 'BÜYÜK KELİME!', c.zincir && `🔗 ZİNCİR ×2`, c.hazine && '🗝️ HAZİNE', c.bombaOdul && `💣 +${c.bombaOdul}`, gorevOdul && `🎯 +${gorevOdul}`, c.kumEk && `⏳ +${Math.round(c.kumEk / 1000)} sn`, c.sonHamle && '⏱ ×1.5'].filter(Boolean);
     geriBildirim(`${trBuyuk(c.w)} +${c.puan}${ekler.length ? ' — ' + ekler.join(' · ') : ''}`, c.buyuk || c.hazine ? 'altin' : 'iyi');
     yenidenOynat(sahne, c.hazine ? 'flas-bonus' : 'flas-dogru');
     if (c.seri >= 2) { setTimeout(() => Ses.cal('seri', c.seri), 200); seriGoster(c.seri, c.seriBonus); }
+    if (c.kumEk) kumSaatiUcur(c.kumEk);
   } else if (c.tur === 'bonus') {
+    if (c.kumEk) kumSaatiUcur(c.kumEk);
     Ses.cal('bonus');
     Ses.cal('puan', Math.max(1, Math.round(c.puan / 60)));
-    geriBildirim(`Bonus kelime: ${trBuyuk(c.w)} +${c.puan}${c.sonHamle ? ' ⏱' : ''}`, 'altin');
+    const gorevOdul = (c.gorev || []).reduce((t, x) => t + x, 0);
+    geriBildirim(`Bonus kelime: ${trBuyuk(c.w)} +${c.puan}${c.zincir ? ' · 🔗×2' : ''}${c.bombaOdul ? ` · 💣 +${c.bombaOdul}` : ''}${gorevOdul ? ` · 🎯 +${gorevOdul}` : ''}${c.sonHamle ? ' ⏱' : ''}`, 'altin');
     yenidenOynat(sahne, 'flas-bonus');
     const m = merkez($('tahmin'));
     Efekt.patlama(m.x, m.y, '#ffc83d', 16);
@@ -1621,12 +1754,33 @@ setInterval(() => {
 
   // Otomatik karıştırma (yazarken durur)
   if (D.durum === 'oyun' && taslar.length && oyunda) {
-    const yaziyor = $('tahmin').value.length > 0;
+    const firtina = D.lv?.tur === 'firtina';
+    const yaziyor = !firtina && $('tahmin').value.length > 0;
     if (!yaziyor) karistirSayac += dt;
-    const oran = Math.min(1, karistirSayac / (KARISTIR_PERIYOT * 1000));
+    const oran = Math.min(1, karistirSayac / ((firtina ? FIRTINA_PERIYOT : KARISTIR_PERIYOT) * 1000));
     $('karistirDolgu').style.transform = `scaleX(${oran})`;
     $('karistirGosterge').classList.toggle('durdu', yaziyor);
     if (oran >= 1) { karistirSayac = 0; harfleriKaristir(); }
+  }
+
+  // Zar turu: sonraki zara kalan süre şeritte
+  if (D.durum === 'oyun' && D.lv?.tur === 'zar' && D.lv.zarSonraki) {
+    const el = $('turSerit').querySelector('.zar-sn');
+    if (el) el.textContent = Math.max(0, Math.ceil((D.lv.zarSonraki - simdi()) / 1000));
+  }
+
+  // Bomba harfin fitili: kalan saniye taşın köşesinde; son 5 saniyede hızlanır
+  if (D.durum === 'oyun' && D.lv?.bombaBitis && oyunda) {
+    const bi = D.lv.harfler.findIndex((h) => h.bomba);
+    if (bi >= 0 && taslar[bi]) {
+      const kalanB = Math.max(0, Math.ceil((D.lv.bombaBitis - simdi()) / 1000));
+      const f = taslar[bi].querySelector('.f');
+      if (f.textContent !== String(kalanB)) {
+        f.textContent = kalanB;
+        if (kalanB <= 5 && kalanB > 0) Ses.cal('bombaTik');
+      }
+      taslar[bi].classList.toggle('acil', kalanB <= 5);
+    }
   }
 
   // Son hamle: son 10 saniye puanlar ×1.5

@@ -209,6 +209,27 @@ const Ses = (() => {
       vurus({ t0: 0, ses: 0.18 });
     },
     odul: (i = 0) => { ton(nota(86 + i * 3), 0.25, { tip: 'triangle', ses: 0.08 }); ton(nota(98 + i * 3), 0.12, { tip: 'sine', ses: 0.04 }); },
+    // Zar atıldı: tıkırtılar + yükselen ton
+    zar: () => {
+      [0, 0.07, 0.15, 0.22].forEach((t, i) => { gurultu(0.04, { t0: t, f: 2500 + i * 400, ses: 0.06, q: 3 }); ton(nota(76 + i * 2), 0.05, { tip: 'square', t0: t, ses: 0.025 }); });
+      ton(nota(84), 0.25, { tip: 'triangle', t0: 0.3, ses: 0.08, bitis: nota(91) });
+    },
+    // Buz çatladı: kısa, tiz çıtırtı
+    buzCatlak: () => { gurultu(0.09, { f: 6500, ses: 0.08, q: 2, tip: 'highpass' }); ton(nota(98), 0.08, { tip: 'triangle', ses: 0.05, bitis: nota(91) }); },
+    // Buz çözüldü: kırılma + parıltı
+    buzCozuldu: () => {
+      gurultu(0.25, { f: 7000, f2: 2500, ses: 0.1, q: 1.2 });
+      arpej([91, 95, 98, 103], 0.05, { tip: 'sine', ses: 0.07, sure: 0.35, t0: 0.08 });
+    },
+    // Bomba fitili (son 5 saniye)
+    bombaTik: () => { ton(1650, 0.035, { tip: 'square', ses: 0.03 }); gurultu(0.05, { f: 3000, ses: 0.025 }); },
+    // Bomba patladı: derin gümleme + gürültü
+    patlama: () => {
+      vurus({ f: 95, f2: 28, ses: 0.32, sure: 0.6 });
+      gurultu(0.8, { f: 1800, f2: 180, ses: 0.18, q: 0.6, tip: 'lowpass' });
+    },
+    // Bomba imha edildi: rahatlama arpeji
+    imha: () => { gurultu(0.15, { f: 2500, f2: 600, ses: 0.05 }); arpej([72, 76, 79, 84], 0.06, { tip: 'triangle', ses: 0.1, sure: 0.25, t0: 0.06 }); },
   };
 
   // ---------- Arka plan müziği ----------

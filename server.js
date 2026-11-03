@@ -159,7 +159,7 @@ function yayinla(oda) {
 // Seviye bitiş zamanlayıcısını (yeniden) kur — hazine kelime süreyi uzatabildiği için ayrı tutulur
 function bitisKur(oda) {
   clearTimeout(oda.bitisZ);
-  oda.bitisZ = setTimeout(() => seviyeBitir(oda), Math.max(0, oda.bitis - Date.now()));
+  oda.bitisZ = setTimeout(() => seviyeBitir(oda, 'sure'), Math.max(0, oda.bitis - Date.now()));
   oda.zamanlayicilar.push(oda.bitisZ);
 }
 
@@ -205,7 +205,8 @@ function seviyeBaslat(oda) {
   yayinla(oda);
 }
 
-function seviyeBitir(oda) {
+// neden: 'sure' (süre doldu) | 'hepsi' (bütün kelimeler bulundu) | 'atla' (oda sahibi bitirdi)
+function seviyeBitir(oda, neden = 'sure') {
   if (oda.durum !== 'oyun') return;
   zamanlayiciTemizle(oda);
   const lv = oda.lv;
@@ -226,6 +227,7 @@ function seviyeBitir(oda) {
   const sirali = [...oda.oyuncular.values()].filter((p) => p.seviyePuan > 0).sort((a, b) => b.seviyePuan - a.seviyePuan);
   oda.sonSonuc = {
     seviye: oda.seviye,
+    neden,
     gecti,
     yildiz: yld,
     bulunan,
@@ -395,7 +397,7 @@ io.on('connection', (socket) => {
   // Oyun yalnızca lobiden ya da oyun bittikten sonra başlatılabilir (oyun ortasında sıfırlanmasın)
   socket.on('baslat', () => { if (sahipMi() && (oda.durum === 'lobi' || oda.durum === 'bitti')) oyunuBaslat(oda); });
   socket.on('lobi', () => { if (sahipMi()) lobiyeDon(oda); });
-  socket.on('atla', () => { if (sahipMi() && oda.durum === 'oyun') seviyeBitir(oda); });
+  socket.on('atla', () => { if (sahipMi() && oda.durum === 'oyun') seviyeBitir(oda, 'atla'); });
 
   socket.on('sohbet', (metin) => {
     if (!oda || !oyuncu || !sohbetSiniri()) return;
@@ -486,7 +488,7 @@ io.on('connection', (socket) => {
       if (lv.tahta.every((x) => x.bulan)) {
         akisEkle(oda, { tur: 'sistem', olay: 'hepsi', metin: 'Bütün kelimeler bulundu! Mükemmel!' });
         yayinla(oda);
-        return seviyeBitir(oda);
+        return seviyeBitir(oda, 'hepsi');
       }
       // Hazine kelime takıma ek süre kazandırır
       if (hazine) {

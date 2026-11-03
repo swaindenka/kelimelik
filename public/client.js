@@ -127,6 +127,7 @@ function odadanAyril() {
   sonHamleDuyuru = null; rekorDuyuruldu = false;
   akisCiz(); sohbetCiz(true);
   $('menuKatman').classList.add('gizli');
+  turSonuKapat(false);
   sonucKatmani(false);
   $('sonucAcBtn').classList.add('gizli');
   $('baglanti').classList.add('gizli');
@@ -173,10 +174,16 @@ $('menuLink').onclick = linkKopyala;
 // `ses` verilirse afiş göründüğü anda çalınır.
 const afisKuyruk = [];
 let afisMesgul = false;
+const ertelenenAfis = [];   // tur bitiş açılışı sırasında gelen afişler, açılış kapanınca gösterilir
 function afis(baslik, alt = '', tur = '', ses = null) {
+  if (turSonuAcik()) { ertelenenAfis.push([baslik, alt, tur, ses]); return; }
   afisKuyruk.push({ baslik, alt, tur, ses });
   if (afisKuyruk.length > 3) afisKuyruk.splice(0, afisKuyruk.length - 3); // çok birikirse eskiler atlanır
   if (!afisMesgul) afisSonraki();
+}
+function afisleriTemizle() {
+  afisKuyruk.length = 0;
+  $('afisler').innerHTML = '';
 }
 function afisSonraki() {
   const a = afisKuyruk.shift();
@@ -253,6 +260,8 @@ function gecisleriIsle(o, d) {
   // Seviye bitti
   if (o?.durum === 'oyun' && (d.durum === 'sonuc' || d.durum === 'bitti')) {
     const r = d.sonSonuc;
+    if (r) turSonuGoster(r, d);
+    titret(r?.gecti ? [40, 60, 40] : [180, 90, 180]);
     if (d.durum === 'bitti') { Ses.cal('oyunBitti'); Efekt.konfetiYagmuru(true); }
     else if (r?.gecti) { Ses.cal('gecti'); Efekt.konfetiYagmuru(r.yildiz === 3); }
     else Ses.cal('kaldi');
@@ -1096,10 +1105,100 @@ for (const e of TEPKILER) {
 function sonucKatmani(goster) {
   $('sonucKatman').classList.toggle('gizli', !goster);
   document.body.classList.toggle('sonuc-acik', goster); // afişler sonuç kartını kapatmasın
-  $('sonucAcBtn').classList.toggle('gizli', goster || !D || D.durum === 'oyun' || !D.sonSonuc);
+  $('sonucAcBtn').classList.toggle('gizli', goster || !D || D.durum === 'oyun' || !D.sonSonuc || turSonuAcik());
 }
 $('sonucAcBtn').onclick = () => sonucKatmani(true);
 $('sonucKatman').addEventListener('click', (e) => { if (e.target === $('sonucKatman')) sonucKatmani(false); });
+
+// ---------- Tur bitiş açılışı ----------
+// Seviye bitince sonuç kartından önce tam ekran, büyük bir "geçildi / başarısız" ekranı.
+const TUR_SONU_SURE = 2800;
+let turSonuZaman = null;
+let bekleyenKart = false;
+function turSonuAcik() { return !$('turSonu').classList.contains('gizli'); }
+
+function sonucMetinleri(r) {
+  const tur = r.oyunBitti ? 'bitti' : r.gecti ? 'gecti' : 'kaldi';
+  const ust = r.neden === 'hepsi' ? 'Bütün kelimeler bulundu' : r.neden === 'atla' ? 'Oda sahibi bitirdi' : 'Süre doldu';
+  const puan = `${r.takimPuan} / ${r.puanHedef} puan`;
+  if (tur === 'bitti') return { tur, ust, amblem: '🏁', baslik: 'Oyun bitti', alt: `Ulaşılan seviye ${r.seviye} · ${puan}` };
+  if (tur === 'gecti') {
+    const patron = r.tur === 'patron';
+    return {
+      tur, ust, amblem: patron ? '👑' : '✓',
+      baslik: patron ? 'Patron yenildi!' : r.yildiz === 3 ? 'Mükemmel!' : 'Seviye geçildi!',
+      alt: `Seviye ${r.seviye} · ${puan}`,
+    };
+  }
+  return { tur, ust, amblem: '✕', baslik: 'Seviye başarısız', alt: `Hedefe ${Math.max(0, r.puanHedef - r.takimPuan)} puan kaldı · ${puan}` };
+}
+
+function turSonuGoster(r, d) {
+  const el = $('turSonu');
+  const m = sonucMetinleri(r);
+  clearTimeout(turSonuZaman);
+  afisleriTemizle();
+  el.className = 'tur-sonu ' + m.tur;
+  el.querySelector('.ts-ust').textContent = `Seviye ${r.seviye} · ${m.ust}`;
+  el.querySelector('.ts-baslik').textContent = m.baslik;
+  el.querySelector('.ts-alt').textContent = m.alt;
+  // Amblem: geçildi ✓, başarısız ✕ çizilir; oyun sonu / patron için simge
+  const isaret = el.querySelector('.ts-isaret');
+  const emoji = el.querySelector('.ts-emoji');
+  const simge = m.tur === 'bitti' || (m.tur === 'gecti' && r.tur === 'patron');
+  isaret.setAttribute('d', simge ? '' : m.tur === 'gecti' ? 'M36 62 L53 79 L86 43' : 'M42 42 L78 78 M78 42 L42 78');
+  emoji.textContent = simge ? m.amblem : '';
+
+  const roz = el.querySelector('.ts-rozetler');
+  roz.innerHTML = '';
+  if (m.tur === 'gecti') {
+    const y = document.createElement('div'); y.className = 'ts-yildizlar';
+    for (let i = 0; i < 3; i++) {
+      const s = document.createElement('span');
+      s.textContent = '★';
+      if (i < r.yildiz) { s.className = 'dolu'; s.style.setProperty('--i', i); setTimeout(() => { if (turSonuAcik()) Ses.cal('yildiz', i); }, 650 + i * 260); }
+      y.appendChild(s);
+    }
+    roz.appendChild(y);
+    if (r.canKazanildi) { const c = document.createElement('div'); c.className = 'ts-pill iyi'; c.textContent = '+1 ♥ can kazandınız'; roz.appendChild(c); }
+  } else {
+    const azami = d.ayar?.can || 0;
+    if (azami > 0) {
+      const k = document.createElement('div'); k.className = 'ts-kalpler';
+      for (let i = 0; i < azami; i++) {
+        const s = document.createElement('span');
+        s.textContent = '♥';
+        s.className = i < d.can ? 'dolu' : i === d.can ? 'kirildi' : 'bos';
+        k.appendChild(s);
+      }
+      roz.appendChild(k);
+    }
+    const p = document.createElement('div'); p.className = 'ts-pill kotu';
+    p.textContent = m.tur === 'bitti' ? 'Canlar bitti' : azami > 0 ? `${d.can} can kaldı · aynı seviye yeni harflerle` : 'Sınırsız can · aynı seviye yeni harflerle';
+    roz.appendChild(p);
+  }
+  el.classList.remove('gizli');
+  document.body.classList.add('tur-sonu-acik');
+  sonucKatmani(false);
+  turSonuZaman = setTimeout(() => turSonuKapat(true), TUR_SONU_SURE);
+}
+
+// karti: açılış bittikten sonra sonuç kartı açılsın mı
+function turSonuKapat(karti) {
+  const el = $('turSonu');
+  clearTimeout(turSonuZaman);
+  if (el.classList.contains('gizli')) return;
+  el.classList.add('cikis');
+  setTimeout(() => {
+    el.classList.add('gizli');
+    el.classList.remove('cikis');
+    document.body.classList.remove('tur-sonu-acik');
+    if (karti && bekleyenKart && D?.sonSonuc && D.durum !== 'oyun') { sonucKatmani(true); sonucCiz(false); }
+    bekleyenKart = false;
+    for (const a of ertelenenAfis.splice(0)) afis(...a);
+  }, azHareket ? 0 : 280);
+}
+$('turSonu').addEventListener('click', () => turSonuKapat(true));
 
 // Seviye sonu ödülleri (sunucu kimin aldığını hesaplar, metinler burada)
 const ODULLER = {
@@ -1113,11 +1212,16 @@ const ODULLER = {
 
 function sonucCiz(durumDegisti) {
   const r = D.sonSonuc;
-  if (!r || D.durum === 'oyun') { sonucKatmani(false); return; }
+  if (!r || D.durum === 'oyun') { sonucKatmani(false); turSonuKapat(false); return; }
+  if (turSonuAcik()) { bekleyenKart = true; sonucKatmani(false); return; } // önce tur bitiş açılışı
   if (durumDegisti) sonucKatmani(true);
   else sonucKatmani(!$('sonucKatman').classList.contains('gizli'));
   const bitti = r.oyunBitti;
-  $('sonucBaslik').textContent = bitti ? 'Oyun bitti!' : r.gecti ? `Seviye ${r.seviye} geçildi!` : `Seviye ${r.seviye} başarısız`;
+  const m = sonucMetinleri(r);
+  $('sonucHero').dataset.sonuc = m.tur;
+  $('sonucAmblem').textContent = m.amblem;
+  $('sonucUst').textContent = `Seviye ${r.seviye} · ${m.ust}`;
+  $('sonucBaslik').textContent = m.baslik;
   $('sonucBaslik').className = 'sonuc-baslik ' + (r.gecti ? 'iyi' : 'kotu');
 
   // Yıldızlar: durum yeni değiştiyse tek tek yansın
@@ -1356,12 +1460,27 @@ $('sesDuzey').oninput = () => { Ses.duzey = $('sesDuzey').value; };
 $('sesDuzey').onchange = () => Ses.cal('dogru');
 $('muzikAcik').onchange = () => { Ses.muzikAcik = $('muzikAcik').checked; sesIkonlari(); };
 $('muzikDuzey').oninput = () => { Ses.muzikDuzey = $('muzikDuzey').value; };
+// Titreşim (yalnızca destekleyen dokunmatik cihazlarda): ses kapalıyken süreyi hissettirir
+const titresimVar = dokunmatik && typeof navigator.vibrate === 'function';
+let titresimAcik = oku('ka_titresim') !== '0';
+$('titresimSatir').classList.toggle('gizli', !titresimVar);
+$('titresimAcik').checked = titresimAcik;
+$('titresimAcik').onchange = () => { titresimAcik = $('titresimAcik').checked; kaydet('ka_titresim', titresimAcik ? '1' : '0'); titret(40); };
+function titret(desen) { if (titresimVar && titresimAcik) { try { navigator.vibrate(desen); } catch {} } }
 $('menuKapat').onclick = () => $('menuKatman').classList.add('gizli');
 $('menuKatman').addEventListener('click', (e) => { if (e.target === $('menuKatman')) $('menuKatman').classList.add('gizli'); });
 $('menuAtla').onclick = () => { socket.emit('atla'); $('menuKatman').classList.add('gizli'); };
 $('menuLobi').onclick = () => { socket.emit('lobi'); $('menuKatman').classList.add('gizli'); };
 $('menuCik').onclick = odadanAyril;
 $('lobiAyril').onclick = odadanAyril;
+
+// Son 10 saniye: yarı saydam büyük geri sayım (ses kapalıyken de süre fark edilsin)
+function sonSayac(n) {
+  const el = $('sonSayac');
+  el.textContent = n;
+  el.classList.toggle('kritik', n <= 3);
+  yenidenOynat(el, 'goster');
+}
 
 // Seviyeler arası büyük geri sayım
 function buyukSayac(n) {
@@ -1410,8 +1529,19 @@ setInterval(() => {
   if (!D.bitis || D.durum === 'lobi') { document.body.classList.remove('son-saniye'); return; }
   const kalan = Math.max(0, kalanMs);
   const sn = Math.ceil(kalan / 1000);
+  const cubuk = $('zamanCubugu');
+  cubuk.classList.toggle('aktif', D.durum === 'oyun');
   if (D.durum === 'oyun') {
     const toplam = Math.max(D.lv?.sure || D.ayar.sure * 1000, kalan);
+    $('zamanDolgu').style.transform = `scaleX(${kalan / toplam})`;
+    cubuk.classList.toggle('az', sn <= 30 && sn > 10);
+    cubuk.classList.toggle('kritik', sn <= 10);
+    if (sonSaniye !== null && sn !== sonSaniye) {
+      if (sn === 30) yenidenOynat(cubuk, 'uyari');
+      if (sn <= 10 && sn > 0) sonSayac(sn);
+      if (sn === 10) titret(80);
+      else if (sn <= 3 && sn > 0) titret(45);
+    }
     $('sureYazi').textContent = sn;
     $('sureHalka').style.strokeDashoffset = 119.4 * (1 - kalan / toplam);
     $('sure').classList.toggle('az', sn <= 15);

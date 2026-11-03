@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12102a">
+  <title>Kelime Avı</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23fff6e0'/%3E%3Ctext x='50' y='73' font-size='66' text-anchor='middle' font-family='Arial' font-weight='900' fill='%232b2147'%3EK%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="arka-harfler" aria-hidden="true"></div>
+
+  <!-- Giriş -->
+  <section id="giris" class="ekran aktif">
+    <div class="kart giris-kart">
+      <h1 class="logo"><span>K</span><span>E</span><span>L</span><span>İ</span><span>M</span><span>E</span> <b>AVI</b></h1>
+      <p class="alt">Harflerden kelime türet, arkadaşlarınla seviye atla.</p>
+      <label>Adın
+        <input id="isim" maxlength="16" autocomplete="nickname" placeholder="ör. Musa">
+      </label>
+      <button id="odaKur" class="btn ana">Yeni oda kur</button>
+      <div class="ayrac"><span>ya da</span></div>
+      <div class="satir">
+        <input id="kodGir" maxlength="4" placeholder="ODA KODU" class="kod-input">
+        <button id="katil" class="btn">Katıl</button>
+      </div>
+      <p id="girisHata" class="hata"></p>
+    </div>
+  </section>
+
+  <!-- Lobi -->
+  <section id="lobi" class="ekran">
+    <div class="kart lobi-kart">
+      <div class="lobi-ust">
+        <div>
+          <div class="etiket">Oda kodu</div>
+          <div id="lobiKod" class="buyuk-kod">----</div>
+        </div>
+        <div class="lobi-dugmeler">
+          <button id="lobiSes" class="btn ikon hayalet" title="Ses efektleri">🔊</button>
+          <button id="lobiMuzik" class="btn ikon hayalet" title="Müzik">🎵</button>
+          <button id="linkKopyala" class="btn kucuk">🔗 Davet linkini kopyala</button>
+        </div>
+      </div>
+      <div class="lobi-govde">
+        <div>
+          <h3>Oyuncular <span id="oyuncuSayi" class="sayi-rozet">0</span></h3>
+          <ul id="lobiOyuncular" class="oyuncu-listesi"></ul>
+          <details class="nasil" open>
+            <summary>Nasıl oynanır?</summary>
+            <ul>
+              <li>Harflerle kelime yaz, <b>Enter</b>'a bas ya da taşlara tıkla. <b>↑</b> son tahmini geri getirir.</li>
+              <li>Her harfin bir <b>puanı</b> var (taşın köşesinde). Nadir harf = çok puan. <b>×2 / ×3</b> taşlar o harfin puanını katlar.</li>
+              <li>Kelime puanı = harf puanları × uzunluk çarpanı. Uzun kelime çok kazandırır, <b>büyük kelime ×2</b>.</li>
+              <li>Süre bitmeden takımca <b>puan hedefine</b> ulaşın, yoksa can gider. Bonus kelimeler de hedefe sayılır.</li>
+              <li><b>🗝️ Hazine kelime</b> tahtada parlar: ×2 puan ve takıma <b>+8 saniye</b>.</li>
+              <li><b>⏱ Son hamle:</b> son 10 saniyede bulunan kelimeler ×1.5 puan.</li>
+              <li>8 saniye içinde art arda bulursan <b>🔥 seri</b>: her adım kelime puanına +%10.</li>
+              <li>Harfler 10 saniyede bir kendiliğinden karışır, sen yazarken durur.</li>
+              <li>Özel seviyeler: <b>⚡ Hızlı Tur</b> (kısa süre), <b>💰 Altın Tur</b> (her 5. seviye, puan ×2), <b>👑 Patron</b> (her 10. seviye: patronun canını sıfırlayın, +1 can kazanın).</li>
+              <li><b>?</b> gizli harftir, sonra açılır. Bazı seviyelerde <b>sahte harf</b> vardır.</li>
+              <li><b>💡 İpucu</b> bir kelimenin harfini herkese açar, puanından düşer.</li>
+              <li>Tahtada olmayan ama sözlükte olan kelimeler <b>bonus</b> puan verir.</li>
+            </ul>
+          </details>
+        </div>
+        <div>
+          <h3>Ayarlar</h3>
+          <div class="zorluk-secim" id="zorlukSecim" role="radiogroup" aria-label="Zorluk">
+            <button type="button" data-zorluk="kolay"><b>🌱</b><span>Kolay</span></button>
+            <button type="button" data-zorluk="normal"><b>⚔️</b><span>Normal</span></button>
+            <button type="button" data-zorluk="zor"><b>🔥</b><span>Zor</span></button>
+            <button type="button" data-zorluk="uzman"><b>💀</b><span>Uzman</span></button>
+          </div>
+          <p id="zorlukAciklama" class="zorluk-aciklama"></p>
+          <div id="rekorSatir" class="rekor-satir gizli"></div>
+          <div class="ayar-satir">
+            <label>Seviye süresi
+              <select id="ayarSure">
+                <option value="60">60 sn</option><option value="80">80 sn</option><option value="100">100 sn</option>
+                <option value="120">120 sn</option><option value="150">150 sn</option><option value="180">180 sn</option>
+              </select>
+            </label>
+            <label>Can
+              <select id="ayarCan">
+                <option value="1">1</option><option value="3">3</option><option value="5">5</option><option value="0">Sınırsız</option>
+              </select>
+            </label>
+          </div>
+          <h3>Harf puanları</h3>
+          <div class="harf-tablosu" aria-label="Harf puanları">
+            <div><b>1</b><span>A E İ K L N R T</span></div>
+            <div><b>2</b><span>I M O S U</span></div>
+            <div><b>3</b><span>B D Ü Y</span></div>
+            <div><b>4</b><span>C Ç Ş Z</span></div>
+            <div><b>5</b><span>G H P</span></div>
+            <div class="nadir"><b>7</b><span>F Ö V</span></div>
+            <div class="nadir"><b>8</b><span>Ğ</span></div>
+            <div class="nadir"><b>10</b><span>J</span></div>
+          </div>
+        </div>
+      </div>
+      <button id="baslat" class="btn ana genis">Oyunu başlat</button>
+      <p id="bekle" class="bekle">Oda sahibinin oyunu başlatması bekleniyor…</p>
+      <div id="lobiSohbetYeri" class="lobi-sohbet"></div>
+    </div>
+  </section>
+
+  <!-- Oyun -->
+  <section id="oyun" class="ekran">
+    <header class="ust-bar">
+      <div class="seviye-kutu"><span class="etiket">Seviye</span><b id="seviyeNo">1</b></div>
+      <div id="turRozet" class="tur-rozet gizli"></div>
+      <div class="ilerleme">
+        <div class="ilerleme-yazi">
+          <span id="patronCan" class="patron-can gizli" title="Patronun canı: puan hedefine kalan"><span class="pc-ad">👑 PATRON</span><span class="pc-hat"><span id="patronDolgu"></span></span><b id="patronHP"></b></span>
+          <span id="takimPuanKutu" class="takim-puan"><span id="takimPuan">0</span> / <span id="hedefPuan">0</span> puan</span>
+          <small id="toplamSayi"></small>
+        </div>
+        <div class="ilerleme-bar"><div id="ilerlemeDolgu"></div><div id="yildizlar"></div></div>
+      </div>
+      <div id="canlar" class="canlar"></div>
+      <div id="sonHamleRozet" class="son-hamle-rozet" title="Son 10 saniyede bulunan kelimeler ×1.5 puan">⏱ SON HAMLE ×1.5</div>
+      <div id="sure" class="sure"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" class="halka-arka"/><circle id="sureHalka" cx="22" cy="22" r="19" class="halka"/></svg><b id="sureYazi">0</b></div>
+      <button id="muzikBtn" class="btn ikon hayalet" title="Müziği aç/kapat">🎵</button>
+      <button id="sesBtn" class="btn ikon hayalet" title="Sesi aç/kapat">🔊</button>
+      <button id="menuBtn" class="btn ikon hayalet" title="Menü ve ayarlar">☰</button>
+    </header>
+
+    <main class="oyun-govde">
+      <div class="sol">
+        <div id="sahne" class="sahne">
+          <span class="kose k1" aria-hidden="true"></span><span class="kose k2" aria-hidden="true"></span>
+          <span class="kose k3" aria-hidden="true"></span><span class="kose k4" aria-hidden="true"></span>
+          <div class="sahne-baslik" aria-hidden="true"><span>✦ HARFLER ✦</span></div>
+          <div class="raf">
+            <div id="harfler" class="harfler"></div>
+          </div>
+          <div class="sahne-alt">
+            <div id="karistirGosterge" class="karistir-gosterge" title="Harfler otomatik karışır, sen yazarken durur.">
+              <span class="ikon-donen">⟲</span>
+              <div class="karistir-bar"><div id="karistirDolgu"></div></div>
+              <small id="karistirYazi">10 sn</small>
+            </div>
+            <button id="ipucuBtn" type="button" class="btn kucuk ipucu-btn">💡 İpucu <span class="say">3</span><small class="bedel"></small></button>
+          </div>
+        </div>
+
+        <div id="bonusSatir" class="bonus-satir"></div>
+        <div id="tahta" class="tahta"></div>
+
+        <div id="yazmaAlani" class="yazma-alani">
+          <div class="yazma-ust">
+            <div id="tahminPuan" class="tahmin-puan"></div>
+            <div id="geriBildirim" class="geri-bildirim" aria-live="polite"></div>
+            <div id="seriRozet" class="seri-rozet"></div>
+          </div>
+          <form id="tahminForm" class="tahmin-form" autocomplete="off">
+            <button type="button" id="silBtn" class="btn ikon" title="Son harfi sil">⌫</button>
+            <input id="tahmin" placeholder="Kelimeyi yaz, Enter'a bas…" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100">
+            <button class="btn ana" type="submit">Gönder</button>
+          </form>
+        </div>
+      </div>
+
+      <aside class="sag">
+        <div class="panel skor-panel">
+          <h3>Skor</h3>
+          <ol id="skorTablosu" class="skor"></ol>
+        </div>
+        <div class="panel akis-panel">
+          <h3>Oyun akışı</h3>
+          <ul id="akis" class="akis"></ul>
+        </div>
+        <div id="oyunSohbetYeri" class="sohbet-yeri"></div>
+      </aside>
+    </main>
+
+    <button id="sonucAcBtn" class="btn kucuk sonuc-ac gizli">Sonuçları göster</button>
+
+    <div id="sonucKatman" class="katman gizli">
+      <div class="kart sonuc-kart">
+        <div id="sonucBaslik" class="sonuc-baslik"></div>
+        <div id="sonucYildiz" class="sonuc-yildiz"></div>
+        <div id="sonucDetay" class="sonuc-detay"></div>
+        <div id="sonucBen" class="sonuc-ben"></div>
+        <div id="sonucOdul" class="sonuc-odul"></div>
+        <div id="podyum" class="podyum gizli"></div>
+        <ol id="sonucMvp" class="mvp"></ol>
+        <div id="sonucKacan" class="sonuc-kacan"></div>
+        <div id="sonucSonraki" class="sonuc-sonraki"></div>
+        <div id="sonucAlt" class="sonuc-alt"></div>
+        <div id="sonucButonlar" class="satir merkez"></div>
+      </div>
+    </div>
+
+    <div id="menuKatman" class="katman gizli">
+      <div class="kart menu-kart">
+        <h3>Oda <span id="menuKod"></span></h3>
+        <div class="ayar-kutu">
+          <label class="yatay"><span>Ses efektleri</span><input type="checkbox" id="sesAcik"></label>
+          <label>Efekt düzeyi <input type="range" id="sesDuzey" min="0" max="1" step="0.05"></label>
+          <label class="yatay"><span>Müzik</span><input type="checkbox" id="muzikAcik"></label>
+          <label>Müzik düzeyi <input type="range" id="muzikDuzey" min="0" max="1" step="0.05"></label>
+        </div>
+        <button id="menuLink" class="btn">🔗 Davet linkini kopyala</button>
+        <button id="menuAtla" class="btn sahip-ozel">Seviyeyi bitir</button>
+        <button id="menuLobi" class="btn sahip-ozel">Lobiye dön</button>
+        <button id="menuCik" class="btn">Odadan çık</button>
+        <button id="menuKapat" class="btn hayalet">Kapat</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sohbet paneli: lobi ile oyun ekranı arasında taşınır -->
+  <div id="sohbetDepo" class="gizli">
+    <div id="sohbetPanel" class="sohbet-panel">
+      <h3>Sohbet</h3>
+      <ul id="sohbetListe" class="sohbet-liste"></ul>
+      <div id="tepkiler" class="tepkiler"></div>
+      <form id="sohbetForm" class="sohbet-form" autocomplete="off">
+        <input id="sohbetGirdi" maxlength="200" placeholder="Mesaj yaz…" autocomplete="off">
+        <button class="btn kucuk ana" type="submit" title="Gönder">➤</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="afisler" class="afisler"></div>
+  <div id="buyukSayac" class="buyuk-sayac" aria-hidden="true"></div>
+  <div id="baglanti" class="baglanti gizli">Bağlantı koptu, yeniden bağlanılıyor…</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="ses.js"></script>
+  <script src="efekt.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "kelime-avi",
+  "version": "1.0.0",
+  "description": "Arkadaşlarla tarayıcıda oynanan Türkçe kelime bulma oyunu (Words on Stream benzeri)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.22.3",
+    "socket.io": "^4.8.4"
+  }
+}

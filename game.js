@@ -2,36 +2,73 @@
 const fs = require('fs');
 const path = require('path');
 
-const ALFABE = 'abcçdefgğhıijklmnoöprsştuüvyz';
 
 const PUAN_HEDEF_YUMUSATMA = 0.75;
 const HAZINE_CARPAN = 2; // hazine kelimenin puan çarpanı
-
-// Harf puanları: Türkçede sık geçen harf az, nadir harf çok puan
-const HARF_DEGER = {
-  a: 1, e: 1, i: 1, k: 1, l: 1, n: 1, r: 1, t: 1,
-  ı: 2, m: 2, o: 2, s: 2, u: 2,
-  b: 3, d: 3, ü: 3, y: 3,
-  c: 4, ç: 4, ş: 4, z: 4,
-  g: 5, h: 5, p: 5,
-  f: 7, ö: 7, v: 7,
-  ğ: 8, j: 10,
-};
-
-const sozluk = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'sozluk.json'), 'utf8'));
-const TUM = new Set(sozluk.tum);              // kabul edilen tüm kelimeler (TDK)
-const YAYGIN = sozluk.yaygin;                 // { kelime: sıklık } — tahtaya çıkan kelimeler
-const YAYGIN_LISTE = Object.keys(YAYGIN).map((w) => ({ w, c: sayac(w), f: YAYGIN[w] }));
-const UZUNLUGA_GORE = {};
-for (const k of YAYGIN_LISTE) (UZUNLUGA_GORE[k.w.length] ||= []).push(k);
 
 function trKucuk(s) {
   return String(s).replace(/I/g, 'ı').replace(/İ/g, 'i').toLocaleLowerCase('tr-TR')
     .replace(/â/g, 'a').replace(/î/g, 'i').replace(/û/g, 'u');
 }
 
-function temizle(s) {
-  return [...trKucuk(s)].filter((ch) => ALFABE.includes(ch)).join('');
+// İngilizce: Türkçe klavyeden gelen İ/ı da i sayılır, aksanlar atılır (é → e)
+function enKucuk(s) {
+  return String(s).replace(/[İı]/g, 'i').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// Oyun dilleri: alfabe, harf puanları, sözlük ve küçük harfe çevirme kuralı
+const DILLER = {
+  tr: {
+    ad: 'Türkçe',
+    alfabe: 'abcçdefgğhıijklmnoöprsştuüvyz',
+    // Türkçede sık geçen harf az, nadir harf çok puan
+    harfDeger: {
+      a: 1, e: 1, i: 1, k: 1, l: 1, n: 1, r: 1, t: 1,
+      ı: 2, m: 2, o: 2, s: 2, u: 2,
+      b: 3, d: 3, ü: 3, y: 3,
+      c: 4, ç: 4, ş: 4, z: 4,
+      g: 5, h: 5, p: 5,
+      f: 7, ö: 7, v: 7,
+      ğ: 8, j: 10,
+    },
+    dosya: 'sozluk.json',
+    kucuk: trKucuk,
+    yerel: 'tr',
+    tohumMin: 60,     // ana kelimenin en düşük sıklığı (iyice bilinen bir kelime olsun)
+  },
+  en: {
+    ad: 'English',
+    alfabe: 'abcdefghijklmnopqrstuvwxyz',
+    // Klasik kelime oyunu dağılımı
+    harfDeger: {
+      a: 1, e: 1, i: 1, l: 1, n: 1, o: 1, r: 1, s: 1, t: 1, u: 1,
+      d: 2, g: 2,
+      b: 3, c: 3, m: 3, p: 3,
+      f: 4, h: 4, v: 4, w: 4, y: 4,
+      k: 5,
+      j: 8, x: 8,
+      q: 10, z: 10,
+    },
+    dosya: 'sozluk-en.json',
+    kucuk: enKucuk,
+    yerel: 'en',
+    tohumMin: 3000,   // İngilizce derlem daha büyük; sıklıklar daha yüksek
+  },
+};
+for (const dil of Object.values(DILLER)) {
+  const sozluk = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', dil.dosya), 'utf8'));
+  dil.tum = new Set(sozluk.tum);   // kabul edilen tüm kelimeler (bonus)
+  dil.yaygin = sozluk.yaygin;      // { kelime: sıklık } — tahtaya çıkabilen kelimeler
+  dil.yayginListe = Object.keys(dil.yaygin).map((w) => ({ w, c: sayac(w), f: dil.yaygin[w] }));
+  dil.uzunlugaGore = {};
+  for (const k of dil.yayginListe) (dil.uzunlugaGore[k.w.length] ||= []).push(k);
+}
+const dilBul = (kod) => DILLER[kod] || DILLER.tr;
+const harfDegeri = (kod, ch) => dilBul(kod).harfDeger[ch] || 1;
+
+function temizle(s, kod = 'tr') {
+  const dil = dilBul(kod);
+  return [...dil.kucuk(s)].filter((ch) => dil.alfabe.includes(ch)).join('');
 }
 
 function sayac(w) {
@@ -88,16 +125,17 @@ function seviyeAyari(seviye, zorluk = ZORLUKLAR.normal, tur = TURLER.normal) {
   return { uzunluk, minHarf, oran, gizli, sahte, minKelime: 8, maxKelime: 30 };
 }
 
-function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye)) {
+function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye), dilKod = 'tr') {
+  const dil = dilBul(dilKod);
   const zorluk = ZORLUKLAR[zorlukAd] || ZORLUKLAR.normal;
   const tur = TURLER[turAd] || TURLER.normal;
   const ayar = seviyeAyari(seviye, zorluk, tur);
-  const adaylar = UZUNLUGA_GORE[ayar.uzunluk];
+  const adaylar = dil.uzunlugaGore[ayar.uzunluk];
   let enIyi = null;
   for (let deneme = 0; deneme < 400; deneme++) {
     const tohum = adaylar[Math.floor(Math.random() * adaylar.length)];
-    if (tohum.f < 60) continue; // ana kelime iyice bilinen bir kelime olsun
-    const kelimeler = YAYGIN_LISTE.filter((k) => k.w.length >= ayar.minHarf && k.w.length <= ayar.uzunluk && sigarMi(k.c, tohum.c));
+    if (tohum.f < dil.tohumMin) continue; // ana kelime iyice bilinen bir kelime olsun
+    const kelimeler = dil.yayginListe.filter((k) => k.w.length >= ayar.minHarf && k.w.length <= ayar.uzunluk && sigarMi(k.c, tohum.c));
     if (kelimeler.length >= ayar.minKelime) { enIyi = { tohum, kelimeler }; break; }
     if (!enIyi || kelimeler.length > enIyi.kelimeler.length) enIyi = { tohum, kelimeler };
   }
@@ -111,7 +149,7 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye)) {
   }
 
   const tahta = kelimeler.map((k) => k.w)
-    .sort((a, b) => a.length - b.length || a.localeCompare(b, 'tr'))
+    .sort((a, b) => a.length - b.length || a.localeCompare(b, dil.yerel))
     .map((w) => ({ w, bulan: null, zaman: 0 }));
 
   // Hazine kelime: 2. seviyeden itibaren tahtadaki bir kelime parlar — ×2 puan ve ek süre getirir.
@@ -131,8 +169,8 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye)) {
   if (ayar.gizli) harfler[Math.floor(Math.random() * harfler.length)].gizli = true;
   if (ayar.sahte) {
     // Kelimede olmayan, rastgele bir harf ekle — çoğu zaman cazip, yüksek puanlı bir harf
-    const yok = [...ALFABE].filter((ch) => !tohum.c[ch]);
-    const cazip = yok.filter((ch) => HARF_DEGER[ch] >= 4);
+    const yok = [...dil.alfabe].filter((ch) => !tohum.c[ch]);
+    const cazip = yok.filter((ch) => dil.harfDeger[ch] >= 4);
     const havuz = cazip.length && Math.random() < 0.7 ? cazip : yok;
     const ch = havuz[Math.floor(Math.random() * havuz.length)];
     harfler.splice(Math.floor(Math.random() * (harfler.length + 1)), 0, { ch, gizli: false, sahte: true, carpan: 1 });
@@ -140,6 +178,7 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye)) {
 
   const lv = {
     seviye,
+    dil: dilKod in DILLER ? dilKod : 'tr',
     tohum: tohum.w,
     harfSayaci: tohum.c,
     harfler,
@@ -166,8 +205,9 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye)) {
 
 // Tahmin kontrolü — sonucu ve ilgili kaydı döndürür
 function tahminKontrol(lv, girdi) {
-  const ham = trKucuk(girdi).trim();
-  const w = temizle(girdi);
+  const dil = dilBul(lv.dil);
+  const ham = dil.kucuk(girdi).trim();
+  const w = temizle(girdi, lv.dil);
   if (!ham) return { tur: 'bos' };
   if (w !== ham) return { tur: 'yok', w: ham.slice(0, 20) };
   if (w.length < lv.minHarf) return { tur: 'kisa', w };
@@ -175,7 +215,7 @@ function tahminKontrol(lv, girdi) {
   const i = lv.tahta.findIndex((s) => s.w === w);
   if (i >= 0) return lv.tahta[i].bulan ? { tur: 'zaten', w, i } : { tur: 'yeni', w, i };
   if (lv.bonus.some((b) => b.w === w)) return { tur: 'zatenBonus', w };
-  if (TUM.has(w) || YAYGIN[w]) return { tur: 'bonus', w };
+  if (dil.tum.has(w) || dil.yaygin[w]) return { tur: 'bonus', w };
   return { tur: 'yok', w };
 }
 
@@ -189,7 +229,7 @@ function harfToplami(lv, w) {
       if (!h.sahte && h.ch === ch && !kullanilan.has(i) && (en < 0 || h.carpan > lv.harfler[en].carpan)) en = i;
     });
     if (en >= 0) kullanilan.add(en);
-    toplam += (HARF_DEGER[ch] || 1) * (en >= 0 ? lv.harfler[en].carpan : 1);
+    toplam += harfDegeri(lv.dil, ch) * (en >= 0 ? lv.harfler[en].carpan : 1);
   }
   return toplam;
 }
@@ -215,4 +255,7 @@ function yildiz(lv) {
   return p >= e3 ? 3 : p >= e2 ? 2 : p >= e1 ? 1 : 0;
 }
 
-module.exports = { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, uzunlukCarpani, temizle, trKucuk, ALFABE, HARF_DEGER, PUAN_OLCEK, HAZINE_CARPAN, ZORLUKLAR, TURLER };
+const ALFABE = DILLER.tr.alfabe;       // geriye dönük uyumluluk
+const HARF_DEGER = DILLER.tr.harfDeger;
+
+module.exports = { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, uzunlukCarpani, temizle, trKucuk, enKucuk, harfDegeri, DILLER, ALFABE, HARF_DEGER, PUAN_OLCEK, HAZINE_CARPAN, ZORLUKLAR, TURLER };

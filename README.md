@@ -1,6 +1,6 @@
 # Kelime Avı
 
-Words on Stream (wos.gg) tarzı, arkadaşlarla tarayıcıda birlikte oynanan Türkçe kelime oyunu.
+Words on Stream (wos.gg) tarzı, arkadaşlarla tarayıcıda birlikte oynanan Türkçe (isteğe bağlı İngilizce) kelime oyunu.
 
 Ekrana karışık harfler gelir. Herkes aynı anda bu harflerden kelime yazar. Bir kelimeyi ilk bulan puanı alır, kelime de onun rengiyle tahtada açılır. Süre bitmeden takımın toplam puanı hedefe ulaşırsa seviye geçilir, ulaşamazsa bir can gider.
 
@@ -51,6 +51,8 @@ Oda kurduktan sonra lobideki **Davet linkini kopyala** butonuyla linki paylaş. 
 | Tahmin geçmişi | Tahmin kutusunda ↑ / ↓ o seviyedeki son tahminleri geri getirir (yazım hatası düzeltmek için) |
 | Ödüller | Seviye sonunda: ⚡ İlk Kan, 💎 En Değerli kelime, 🗝️ Hazine Avcısı, 🛡️ Kurtarıcı (hedefi geçiren), 🔥 Seri Ustası (3+ seri), 🎯 Bonus Avcısı (2+ bonus) |
 | Sıradaki seviye | Sonuç ekranı bir sonraki seviyenin türünü (Hızlı / Altın / Patron) önceden duyurur |
+| Seviye arası | Sonuç ekranı 16 saniye açık kalır (tahtaya bakmaya zaman kalsın). Bağlı herkes **Hazırım** derse sonraki seviye beklemeden başlar |
+| Dil 🌐 | Lobide oda sahibi kelime dilini seçer: **Türkçe** (varsayılan) ya da **İngilizce**. Harf puanları dile göre değişir; arayüz Türkçe kalır |
 | Rekor 🏆 | Her zorlukta geçilen en yüksek seviye ve en yüksek puan tarayıcıda saklanır, lobide gösterilir. Oyun başındaki rekor aşılınca duyurulur |
 | Sohbet | Lobide ve oyunda ayrı sohbet paneli, emoji tepkileri. Tahmin kutusuna boşluklu ya da `/` ile başlayan yazılanlar da sohbete gider |
 
@@ -100,7 +102,12 @@ Oda sahibi lobide zorluğu, taban süreyi ve can sayısını ayarlar. Oyun sıra
 server.js        Express + Socket.io sunucusu, odalar, seviye akışı, puanlama
 game.js          Sözlük, seviye üretimi, tahmin kontrolü
 public/          Arayüz (index.html, style.css, client.js, ses.js, efekt.js)
-data/sozluk.json Türkçe kelime listesi
+data/sozluk.json    Türkçe kelime listesi
+data/sozluk-en.json İngilizce kelime listesi (araclar/ingilizce-sozluk.js ile üretilir)
 ```
+
+İngilizce sözlüğü yeniden üretmek için: ENABLE listesi (kamu malı, github.com/dolph/dictionary),
+OpenSubtitles sıklık listesi `en_50k.txt` (github.com/hermitdave/FrequencyWords) ve tahtaya çıkmaması
+gereken kelimeler listesi (github.com/LDNOOBW) indirilip `node araclar/ingilizce-sozluk.js <enable1.txt> <en_50k.txt> <kotu-kelimeler.txt>` çalıştırılır.
 
 Test için belirli bir seviyeden başlatma: `BASLANGIC_SEVIYE=10 npm start`.

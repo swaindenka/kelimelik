@@ -3,7 +3,7 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
-const { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, harfDegeri, DILLER, HAZINE_CARPAN, ZORLUKLAR, TURLER } = require('./game');
+const { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, harfDegeri, kalabalikCarpani, DILLER, HAZINE_CARPAN, ZORLUKLAR, TURLER } = require('./game');
 
 const PORT = process.env.PORT || 3000;
 const SONUC_SURESI = 16000;  // seviye sonu ekranı (ms) — tahtaya bakmaya zaman kalsın; herkes hazırsa erken başlar
@@ -17,6 +17,11 @@ const SERI_UST = 5;          // en fazla kaç adım bonus verilir
 const IPUCU_HAKKI = 3;       // seviye başına oda genelinde ipucu hakkı
 const IPUCU_BEDEL = 25;      // ipucu alanın puanından düşülür
 const PATRON_ARALIK = 10;    // patron seviyeleri (10, 20, …) yıldızla atlanamaz
+const BOMBA_CEZA = 10000;    // patlayan bomba takımın süresinden düşer (ms)
+const BOMBA_ODUL = 60;       // bombayı imha eden kelimeye ek puan (× seviye puan çarpanı)
+// Kum saati turu: bulunan kelime süre ekler — 2 sn + 3 harften sonraki her iki harf için 1 sn (büyük kelime 6 sn)
+const kumSaatiEk = (w, buyuk) => (buyuk ? 6000 : 2000 + Math.floor(Math.max(0, w.length - 3) / 2) * 1000);
+const KUM_BONUS_EK = 1000;   // bonus kelime ekler
 const TEPKILER = ['👏', '🔥', '😂', '😮', '😭', '❤️', '👍', '🎉'];
 const RENKLER = ['#ff6b6b', '#4dabf7', '#51cf66', '#fcc419', '#cc5de8', '#ff922b', '#20c997', '#f06595', '#94d82d', '#748ffc', '#e599f7', '#66d9e8'];
 
@@ -105,6 +110,7 @@ function genelDurum(oda) {
     bitis: oda.bitis,
     sonSonuc: oda.sonSonuc,
     hazir: [...oda.hazir],
+    kalabalik: kalabalikCarpani(aktifOyuncu(oda)),
   };
   if (lv) {
     const gizliGoster = oda.durum !== 'oyun';
@@ -119,6 +125,8 @@ function genelDurum(oda) {
           x: h.carpan || 1,                          // taş çarpanı
           gizli: h.gizli,
           sahte: h.sahte && (lv.sahteAcik || gizliGoster),
+          buz: !!h.buz, buzCozuldu: !!h.buzCozuldu,
+          bomba: !!h.bomba, patladi: !!h.patladi, imha: !!h.imha,
         };
       }),
       tahta: lv.tahta.map((s) => {
@@ -138,6 +146,11 @@ function genelDurum(oda) {
       minHarf: lv.minHarf,
       buyukUzunluk: lv.buyukUzunluk,
       gizliVar: lv.harfler.some((h) => h.gizli),
+      buzKalan: lv.buzKalan,
+      bombaBitis: lv.bombaBitis || 0,
+      kumsaati: lv.kumsaati,
+      kalabalik: lv.kalabalik,
+      tabanHedef: lv.tabanHedef,
       sahteVar: lv.harfler.some((h) => h.sahte),
       ipucuKalan: lv.ipucuKalan,
       ipucuBedel: IPUCU_BEDEL,
@@ -168,6 +181,63 @@ function bitisKur(oda) {
   oda.zamanlayicilar.push(oda.bitisZ);
 }
 
+// Seviye başında bağlı (ayrılmamış) oyuncu sayısı — kalabalık dengesi buna göre
+function aktifOyuncu(oda) {
+  return [...oda.oyuncular.values()].filter((p) => p.bagli && !p.ayrildi).length || 1;
+}
+
+// Süreyi kısalt (bomba): en az birkaç saniye kalsın
+function sureKes(oda, ms) {
+  oda.bitis = Math.max(Date.now() + 3000, oda.bitis - ms);
+  bitisKur(oda);
+}
+
+// Kum saati: süre ekler ama "kum saatinin" alabileceğinden (lv.sureMs) fazlası birikmez
+function kumSaatiEkle(oda, ms) {
+  const once = oda.bitis;
+  oda.bitis = Math.min(oda.bitis + ms, Date.now() + oda.lv.sureMs);
+  if (oda.bitis !== once) bitisKur(oda);
+  return Math.max(0, oda.bitis - once);
+}
+
+// Bulunan her kelime (tahta ya da bonus) buzu biraz kırar; yeterince kelime bulununca çözülür
+function buzVur(oda) {
+  const lv = oda.lv;
+  const buzlu = lv.harfler.find((h) => h.buz);
+  if (!buzlu) return;
+  lv.buzKalan = Math.max(0, lv.buzKalan - 1);
+  if (lv.buzKalan > 0) return akisEkle(oda, { tur: 'sistem', olay: 'buzCatlak', metin: `❄️ Buz çatladı — ${lv.buzKalan} kelime kaldı` });
+  buzlu.buz = false;
+  buzlu.buzCozuldu = true;
+  akisEkle(oda, { tur: 'sistem', olay: 'buzCozuldu', metin: `❄️ Buz çözüldü! ${buzlu.ch.toLocaleUpperCase(lv.dil === 'en' ? 'en' : 'tr')} artık kullanılabilir` });
+}
+
+// Bomba harfini içeren bir kelime bulununca bomba imha edilir; bulan ek puan alır
+function bombaKontrol(oda, oyuncu, w, takimaEkle) {
+  const lv = oda.lv;
+  const bomba = lv.harfler.find((h) => h.bomba);
+  if (!bomba || !w.includes(bomba.ch)) return 0;
+  bomba.bomba = false;
+  bomba.imha = true;
+  const odul = Math.round(BOMBA_ODUL * (lv.puanCarpan || 1));
+  oyuncu.puan += odul;
+  oyuncu.seviyePuan += odul;
+  takimaEkle(odul);
+  akisEkle(oda, { tur: 'sistem', olay: 'bombaImha', id: oyuncu.id, puan: odul, metin: `💣 Bomba imha edildi! +${odul} puan` });
+  return odul;
+}
+
+function bombaPatlat(oda) {
+  const lv = oda.lv;
+  const bomba = lv?.harfler.find((h) => h.bomba);
+  if (oda.durum !== 'oyun' || !bomba) return;
+  bomba.bomba = false;
+  bomba.patladi = true;
+  sureKes(oda, BOMBA_CEZA);
+  akisEkle(oda, { tur: 'sistem', olay: 'bombaPatladi', metin: `💥 Bomba patladı! −${BOMBA_CEZA / 1000} saniye` });
+  yayinla(oda);
+}
+
 function sureUzat(oda, ms) {
   oda.bitis += ms;
   oda.lv.sureMs += ms; // istemcideki süre halkası orantılı kalsın
@@ -178,16 +248,23 @@ function seviyeBaslat(oda) {
   zamanlayiciTemizle(oda);
   // Sonuç ekranında önceden duyurulan seviye türü kullanılır (yoksa yeni seçilir)
   oda.hazir.clear();
-  oda.lv = seviyeUret(oda.seviye, oda.ayar.zorluk, oda.sonrakiTur || undefined, oda.ayar.dil);
+  oda.lv = seviyeUret(oda.seviye, oda.ayar.zorluk, oda.sonrakiTur || undefined, oda.ayar.dil, { oyuncu: aktifOyuncu(oda) });
   oda.sonrakiTur = null;
   oda.lv.kimlik = ++oda.lvSayac;
   oda.lv.ipucuKalan = IPUCU_HAKKI;
   oda.durum = 'oyun';
   oda.sonSonuc = null;
-  // Süre: lobideki taban süre × zorluk × seviye türü (5 sn'ye yuvarlanır)
+  // Süre: lobideki taban süre × zorluk × seviye türü × kalabalık (5 sn'ye yuvarlanır)
   const sure = Math.max(30, Math.round(oda.ayar.sure * oda.lv.sureCarpan / 5) * 5) * 1000;
-  oda.lv.sureMs = sure;
+  // Kum saati: az süreyle başlar; halka "kum saatinin" tamamını (türsüz süreyi) gösterir
+  oda.lv.sureMs = oda.lv.kumsaati ? Math.round(oda.ayar.sure * oda.lv.sureCarpan / TURLER.kumsaati.sure / 5) * 5000 : sure;
   oda.bitis = Date.now() + sure;
+  // Bomba harf: fitil sürenin ~%30'u (20–35 sn); o harfle kelime bulunmazsa patlar
+  if (oda.lv.harfler.some((h) => h.bomba)) {
+    const fitil = Math.min(35000, Math.max(20000, Math.round(sure * 0.3)));
+    oda.lv.bombaBitis = Date.now() + fitil;
+    oda.zamanlayicilar.push(setTimeout(() => bombaPatlat(oda), fitil));
+  }
   for (const p of oda.oyuncular.values()) {
     p.seviyePuan = 0; p.seviyeKelime = 0; p.seri = 0; p.sonBulma = 0; p.seviyeSeri = 0;
   }
@@ -207,7 +284,9 @@ function seviyeBaslat(oda) {
   }
   bitisKur(oda);
   const tur = TURLER[oda.lv.tur];
-  akisEkle(oda, { tur: 'sistem', olay: 'basla', metin: `${tur.ad ? tur.ikon + ' ' + tur.ad + ' — ' : ''}Seviye ${oda.seviye} başladı — ${oda.lv.tahta.length} kelime, hedef ${oda.lv.puanHedef} puan` });
+  const k = oda.lv.kalabalik;
+  const kalabalikNot = k.n > 1 ? ` · 👥 ${k.n} kişi: hedef +%${Math.round((oda.lv.puanHedef / oda.lv.tabanHedef - 1) * 100)}, süre ×${k.sure}` : '';
+  akisEkle(oda, { tur: 'sistem', olay: 'basla', metin: `${tur.ad ? tur.ikon + ' ' + tur.ad + ' — ' : ''}Seviye ${oda.seviye} başladı — ${oda.lv.tahta.length} kelime, hedef ${oda.lv.puanHedef} puan${kalabalikNot}` });
   yayinla(oda);
 }
 
@@ -521,8 +600,12 @@ io.on('connection', (socket) => {
       if (!oyuncu.enIyi || puan > oyuncu.enIyi.puan) oyuncu.enIyi = { w: s.w, puan };
       const buyuk = s.w.length === lv.buyukUzunluk;
       const hazine = !!kayit.hazine;
-      akisEkle(oda, { tur: 'bulundu', id: oyuncu.id, w: s.w, puan, buyuk, seri, hazine, sonHamle });
-      cevap({ tur: 'yeni', w: s.w, puan, taban, buyuk, seri, seriBonus, hazine, sonHamle, sureEk: hazine ? HAZINE_SURE : 0 });
+      // Kum saati turunda her kelime süre ekler
+      const kumEk = lv.kumsaati ? kumSaatiEkle(oda, kumSaatiEk(s.w, buyuk)) : 0;
+      akisEkle(oda, { tur: 'bulundu', id: oyuncu.id, w: s.w, puan, buyuk, seri, hazine, sonHamle, sureEk: kumEk });
+      const bombaOdul = bombaKontrol(oda, oyuncu, s.w, takimaEkle);
+      buzVur(oda);
+      cevap({ tur: 'yeni', w: s.w, puan, taban, buyuk, seri, seriBonus, hazine, sonHamle, sureEk: (hazine ? HAZINE_SURE : 0) + kumEk, kumEk, bombaOdul });
       takimaEkle(puan);
       if (lv.tahta.every((x) => x.bulan)) {
         akisEkle(oda, { tur: 'sistem', olay: 'hepsi', metin: 'Bütün kelimeler bulundu! Mükemmel!' });
@@ -541,8 +624,11 @@ io.on('connection', (socket) => {
       lv.bonus.push({ w: s.w, bulan: oyuncu.id, puan });
       oyuncu.puan += puan;
       oyuncu.seviyePuan += puan;
-      akisEkle(oda, { tur: 'bonus', id: oyuncu.id, w: s.w, puan, sonHamle });
-      cevap({ tur: 'bonus', w: s.w, puan, sonHamle });
+      const kumEk = lv.kumsaati ? kumSaatiEkle(oda, KUM_BONUS_EK) : 0;
+      akisEkle(oda, { tur: 'bonus', id: oyuncu.id, w: s.w, puan, sonHamle, sureEk: kumEk });
+      const bombaOdul = bombaKontrol(oda, oyuncu, s.w, takimaEkle);
+      buzVur(oda);
+      cevap({ tur: 'bonus', w: s.w, puan, sonHamle, kumEk, bombaOdul });
       takimaEkle(puan);
       return yayinla(oda);
     }

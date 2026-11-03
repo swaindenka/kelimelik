@@ -105,31 +105,63 @@ const TURLER = {
   hizli:  { ad: 'Hızlı Tur', ikon: '⚡', aciklama: 'Süre kısa, hedef düşük · puanlar ×1.25', puan: 1.25, sure: 0.6, oran: 0.75, uzunluk: 0 },
   altin:  { ad: 'Altın Tur', ikon: '💰', aciklama: 'Bu seviyede bütün puanlar ×2', puan: 2, sure: 1, oran: 1, uzunluk: 0 },
   patron: { ad: 'Patron Seviyesi', ikon: '👑', aciklama: 'Bir harf fazla, hedef yüksek · geçerseniz +1 can', puan: 1.5, sure: 1.2, oran: 1.12, uzunluk: 1 },
+  // Az süreyle başlar; bulunan her kelime süre ekler (süre başlangıçtakini aşamaz)
+  kumsaati: { ad: 'Kum Saati', ikon: '⏳', aciklama: 'Az süreyle başlar · her kelime süre ekler · puanlar ×1.2', puan: 1.2, sure: 0.45, oran: 0.9, uzunluk: 0, kumsaati: true },
+  // En kısa kelimeler tahtada yok: en az harf sayısı bir fazla
+  uzun: { ad: 'Uzun Kelime Turu', ikon: '📏', aciklama: 'Kısa kelimeler yok · en az bir harf daha uzun · puanlar ×1.3', puan: 1.3, sure: 1.05, oran: 1, uzunluk: 0, minEk: 1 },
 };
+
+// Kalabalık dengesi: oyuncu arttıkça kelimeler hızlı bulunur, seviye kolaylaşır.
+// Her ek oyuncu hedefi %14 artırır (en çok %60), süreyi %5 kısaltır (en çok %25)
+// ve tahtaya daha çok kelime çıkarır.
+function kalabalikCarpani(oyuncu = 1) {
+  const n = Math.max(1, Math.min(30, Math.floor(oyuncu) || 1));
+  return {
+    n,
+    hedef: Math.round(Math.min(1.6, 1 + 0.14 * (n - 1)) * 100) / 100,
+    sure: Math.round(Math.max(0.75, 1 - 0.05 * (n - 1)) * 100) / 100,
+    minKelime: Math.min(16, 8 + 2 * (n - 1)),
+    maxKelime: Math.min(40, 30 + 2 * (n - 1)),
+  };
+}
+const HEDEF_TAVAN = 0.85; // hedef, tam puanın en çok %85'i (seviye hep geçilebilir kalsın)
 
 function seviyeTuru(seviye) {
   if (seviye % 10 === 0) return 'patron';
   if (seviye % 5 === 0) return 'altin';
-  if (seviye >= 3 && Math.random() < 0.22) return 'hizli';
+  const r = Math.random();
+  if (seviye >= 3 && r < 0.16) return 'hizli';
+  if (seviye >= 4 && r < 0.28) return 'kumsaati';
+  if (seviye >= 6 && r < 0.40) return 'uzun';
   return 'normal';
 }
 
 // Seviyeye göre zorluk ayarı
-function seviyeAyari(seviye, zorluk = ZORLUKLAR.normal, tur = TURLER.normal) {
+function seviyeAyari(seviye, zorluk = ZORLUKLAR.normal, tur = TURLER.normal, kalabalik = kalabalikCarpani(1)) {
   const e = Math.max(1, seviye + zorluk.kayma); // özellikler için etkin seviye
   const uzunluk = Math.min(10, (e <= 2 ? 6 : e <= 5 ? 7 : e <= 9 ? 8 : e <= 14 ? 9 : 10) + tur.uzunluk);
-  const minHarf = seviye < zorluk.minHarfSeviye ? 3 : 4;
+  const minHarf = (seviye < zorluk.minHarfSeviye ? 3 : 4) + (tur.minEk || 0);
   const oran = Math.min(Math.min(0.3 + 0.025 * (seviye - 1), 0.65) * zorluk.oran * tur.oran, 0.8);
   const gizli = e >= 12 || (e >= 4 && e % 2 === 0);
   const sahte = e >= 13 || (e >= 7 && Math.random() < 0.5);
-  return { uzunluk, minHarf, oran, gizli, sahte, minKelime: 8, maxKelime: 30 };
+  // Yeni tuzaklar: buzlu harf (5. etkin seviyeden), bomba harf (8. etkin seviyeden)
+  const buz = e >= 5 && Math.random() < 0.35;
+  const bomba = e >= 8 && Math.random() < 0.3;
+  // Aynı anda en çok 2 tuzak (10. etkin seviyeden sonra 3); fazlası rastgele düşer
+  const tavan = e >= 10 ? 3 : 2;
+  const tuzak = { gizli, sahte, buz, bomba };
+  const acik = karistir(Object.keys(tuzak).filter((k) => tuzak[k]));
+  for (const k of acik.slice(tavan)) tuzak[k] = false;
+  return { uzunluk, minHarf, oran, ...tuzak, minKelime: kalabalik.minKelime, maxKelime: kalabalik.maxKelime };
 }
 
-function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye), dilKod = 'tr') {
+// secenek.oyuncu: seviye başındaki bağlı oyuncu sayısı (kalabalık dengesi)
+function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye), dilKod = 'tr', secenek = {}) {
   const dil = dilBul(dilKod);
   const zorluk = ZORLUKLAR[zorlukAd] || ZORLUKLAR.normal;
   const tur = TURLER[turAd] || TURLER.normal;
-  const ayar = seviyeAyari(seviye, zorluk, tur);
+  const kalabalik = kalabalikCarpani(secenek.oyuncu);
+  const ayar = seviyeAyari(seviye, zorluk, tur, kalabalik);
   const adaylar = dil.uzunlugaGore[ayar.uzunluk];
   let enIyi = null;
   for (let deneme = 0; deneme < 400; deneme++) {
@@ -167,6 +199,11 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye), dil
     harfler[i].carpan = k === 1 && Math.random() < 0.4 ? 3 : 2;
   });
   if (ayar.gizli) harfler[Math.floor(Math.random() * harfler.length)].gizli = true;
+  // Buzlu harf: takım birkaç kelime bulana kadar kullanılamaz. Bomba harf: fitili yanar,
+  // o harfi içeren bir kelime bulunmazsa patlar (süre sunucuda kurulur). İkisi de gizli harf olmaz.
+  const bosta = () => karistir(harfler.filter((h) => !h.gizli && !h.buz && !h.bomba));
+  if (ayar.buz) bosta()[0].buz = true;
+  if (ayar.bomba) bosta()[0].bomba = true;
   if (ayar.sahte) {
     // Kelimede olmayan, rastgele bir harf ekle — çoğu zaman cazip, yüksek puanlı bir harf
     const yok = [...dil.alfabe].filter((ch) => !tohum.c[ch]);
@@ -191,7 +228,11 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye), dil
     zorluk: zorlukAd in ZORLUKLAR ? zorlukAd : 'normal',
     tur: turAd in TURLER ? turAd : 'normal',
     puanCarpan: zorluk.puan * tur.puan,
-    sureCarpan: zorluk.sure * tur.sure,
+    sureCarpan: zorluk.sure * tur.sure * kalabalik.sure,
+    kalabalik,
+    kumsaati: !!tur.kumsaati,
+    // Buz, bu kadar kelime (tahta ya da bonus) bulununca çözülür
+    buzKalan: harfler.some((h) => h.buz) ? (tahta.length >= 15 ? 3 : 2) : 0,
     takimPuan: 0,
   };
   // Puan hedefi: tahtadaki bütün kelimelerin toplam puanının belli bir oranı
@@ -199,7 +240,11 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd = seviyeTuru(seviye), dil
   lv.puanMax = tahta.reduce((t, s) => t + s.puan, 0);
   // Uzun kelimeler puanın büyük kısmını taşıdığından oran 0.75 ile yumuşatılır
   // (kelime sayısı sistemindeki zorluğa yakın kalsın diye)
-  lv.puanHedef = Math.max(50, Math.round(lv.puanMax * ayar.oran * PUAN_HEDEF_YUMUSATMA / 5) * 5);
+  const taban = lv.puanMax * ayar.oran * PUAN_HEDEF_YUMUSATMA;
+  // Kalabalık dengesi hedefi artırır ama tam puanın %85'ini geçmez (taban hedefin altına da inmez)
+  const kalabalikHedef = Math.max(taban, Math.min(taban * kalabalik.hedef, lv.puanMax * HEDEF_TAVAN));
+  lv.puanHedef = Math.max(50, Math.round(kalabalikHedef / 5) * 5);
+  lv.tabanHedef = Math.max(50, Math.round(taban / 5) * 5);
   return lv;
 }
 
@@ -211,7 +256,14 @@ function tahminKontrol(lv, girdi) {
   if (!ham) return { tur: 'bos' };
   if (w !== ham) return { tur: 'yok', w: ham.slice(0, 20) };
   if (w.length < lv.minHarf) return { tur: 'kisa', w };
-  if (!sigarMi(sayac(w), lv.harfSayaci)) return { tur: 'harf', w };
+  const c = sayac(w);
+  if (!sigarMi(c, lv.harfSayaci)) return { tur: 'harf', w };
+  // Buzlu taş çözülene kadar sayılmaz: kelime ancak o taşla yazılabiliyorsa reddedilir
+  const buzlu = lv.harfler.find((h) => h.buz);
+  if (buzlu) {
+    const kullanilabilir = { ...lv.harfSayaci, [buzlu.ch]: (lv.harfSayaci[buzlu.ch] || 0) - 1 };
+    if (!sigarMi(c, kullanilabilir)) return { tur: 'buz', w, ch: buzlu.ch, kalan: lv.buzKalan };
+  }
   const i = lv.tahta.findIndex((s) => s.w === w);
   if (i >= 0) return lv.tahta[i].bulan ? { tur: 'zaten', w, i } : { tur: 'yeni', w, i };
   if (lv.bonus.some((b) => b.w === w)) return { tur: 'zatenBonus', w };
@@ -226,7 +278,7 @@ function harfToplami(lv, w) {
   for (const ch of w) {
     let en = -1;
     lv.harfler.forEach((h, i) => {
-      if (!h.sahte && h.ch === ch && !kullanilan.has(i) && (en < 0 || h.carpan > lv.harfler[en].carpan)) en = i;
+      if (!h.sahte && !h.buz && h.ch === ch && !kullanilan.has(i) && (en < 0 || h.carpan > lv.harfler[en].carpan)) en = i;
     });
     if (en >= 0) kullanilan.add(en);
     toplam += harfDegeri(lv.dil, ch) * (en >= 0 ? lv.harfler[en].carpan : 1);
@@ -258,4 +310,4 @@ function yildiz(lv) {
 const ALFABE = DILLER.tr.alfabe;       // geriye dönük uyumluluk
 const HARF_DEGER = DILLER.tr.harfDeger;
 
-module.exports = { seviyeUret, seviyeTuru, tahminKontrol, kelimePuani, yildiz, esikler, uzunlukCarpani, temizle, trKucuk, enKucuk, harfDegeri, DILLER, ALFABE, HARF_DEGER, PUAN_OLCEK, HAZINE_CARPAN, ZORLUKLAR, TURLER };
+module.exports = { seviyeUret, seviyeTuru, kalabalikCarpani, tahminKontrol, kelimePuani, yildiz, esikler, uzunlukCarpani, temizle, trKucuk, enKucuk, harfDegeri, DILLER, ALFABE, HARF_DEGER, PUAN_OLCEK, HAZINE_CARPAN, ZORLUKLAR, TURLER };

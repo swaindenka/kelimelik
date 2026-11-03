@@ -44,7 +44,7 @@ Oda kurduktan sonra lobideki **Davet linkini kopyala** butonuyla linki paylaş. 
 | Patron canı | Patron seviyelerinde puan hedefi patronun canı olarak gösterilir, her kelime ona vurur |
 | Gizli harf `?` | 4. seviyeden itibaren bazı seviyelerde çıkar, sürenin %40'ında açılır. Puanı da açılana kadar gizlidir |
 | Sahte harf | 7. seviyeden sonra çıkabilir. Kelimede bulunmaz, çoğu zaman cazip, yüksek puanlı bir harftir. Sürenin %60'ında üstü çizilir |
-| Buzlu harf ❄️ | 5. seviyeden sonra çıkabilir (~%35). Takım 2–3 kelime (tahta ya da bonus) bulana kadar kullanılamaz; kalan sayı taşın köşesinde yazar |
+| Buzlu harf ❄️ | 5. seviyeden sonra çıkabilir (~%35). Buzlu taş tahtaya göre seçilir: buz çözülmeden en az 3–4 kelime yazılabilmeli ve buz en az 1–2 kelimeyi gerçekten kilitlemeli (uygun taş yoksa buz çıkmaz). Takım, buz olmadan yazılabilen kelime sayısına göre **1–3 kelime** (tahta ya da bonus) bulunca buz çözülür: yaklaşık her 7 serbest kelimeye 1, hiçbir zaman serbest kelimelerin yarısından fazla değil. Kalan sayı taşın köşesinde yazar; buz yüzünden kilitli kelimeler tahtada buzlu görünür |
 | Bomba harf 💣 | 8. seviyeden sonra çıkabilir (~%30). Fitili sürenin ~%30'u kadar (20–35 sn) yanar. O harfi içeren bir kelime bulunursa imha edilir ve bulan ek puan alır; bulunmazsa patlar ve takım **10 saniye** kaybeder |
 | Tuzak sınırı | Aynı seviyede en çok 2 tuzak (gizli, sahte, buzlu, bomba), 10. etkin seviyeden sonra 3 |
 | Kalabalık dengesi 👥 | Seviye başındaki bağlı oyuncu sayısına göre: her ek oyuncu hedefi %14 artırır (en çok %60), süreyi %5 kısaltır (en çok %25) ve tahtaya daha çok kelime çıkarır (en az 8 → 16, en çok 30 → 40). Hedef tam puanın %85'ini geçmez |

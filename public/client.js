@@ -1290,6 +1290,7 @@ $('sonucKatman').addEventListener('click', (e) => { if (e.target === $('sonucKat
 const TUR_SONU_SURE = 2800;
 let turSonuZaman = null;
 let bekleyenKart = false;
+let turSonuNesil = 0; // her açılışta artar; eski kapanma zamanlayıcısı yeni açılışı gizlemesin
 function turSonuAcik() { return !$('turSonu').classList.contains('gizli'); }
 
 function sonucMetinleri(r) {
@@ -1329,7 +1330,17 @@ function turSonuGoster(r, d) {
   clearTimeout(turSonuZaman);
   afisleriTemizle();
   sayacTemizle($('sonSayac')); // son saniye sayacı sonuç ekranından sonra yeniden belirmesin
+  turSonuNesil++;
   el.className = 'tur-sonu ' + m.tur;
+  // Işık hüzmeleri her açılışta yeni öğe (başarısızlıkta yok); kapanınca silinir
+  el.querySelector('.ts-isinlar')?.remove();
+  if (m.tur !== 'kaldi') {
+    const isin = document.createElement('div');
+    isin.className = 'ts-isinlar';
+    isin.setAttribute('aria-hidden', 'true');
+    isin.appendChild(document.createElement('i'));
+    el.prepend(isin);
+  }
   el.querySelector('.ts-ust').textContent = `Seviye ${r.seviye} · ${m.ust}`;
   el.querySelector('.ts-baslik').textContent = m.baslik;
   el.querySelector('.ts-alt').textContent = m.alt;
@@ -1390,9 +1401,12 @@ function turSonuKapat(karti) {
   clearTimeout(turSonuZaman);
   if (el.classList.contains('gizli')) return;
   el.classList.add('cikis');
+  const nesil = turSonuNesil;
   setTimeout(() => {
+    if (nesil !== turSonuNesil) return; // bu arada yeni bir tur bitiş ekranı açıldı
     el.classList.add('gizli');
     el.classList.remove('cikis');
+    el.querySelector('.ts-isinlar')?.remove(); // dönen katmanı DOM'dan kaldır (iOS'ta hayalet kalmasın)
     document.body.classList.remove('tur-sonu-acik');
     if (karti && bekleyenKart && D?.sonSonuc && D.durum !== 'oyun') { sonucKatmani(true); sonucCiz(false); }
     bekleyenKart = false;

@@ -678,6 +678,10 @@ function ustBarCiz(lv, yeniLv) {
 let mobilOlcu = {};  // mobilde seviye başına sabitlenen kutu ölçüsü
 let masaustuOlcu = {}; // masaüstünde seviye + pencere boyutu başına sabitlenen kutu ölçüsü
 let tahtaLv = null;  // tahtada en son çizilen seviye
+let tahtaDuzen = '';         // son tam kurulumun düzen anahtarı
+let slotEl = new Map();      // kelime sırası → kutu öğesi
+let slotImza = new Map();    // kelime sırası → kutunun son görünüm imzası
+let grupEl = new Map();      // uzunluk → { grup, say } öğeleri
 let oncekiBuzlu = new Set(); // bir önceki çizimde buz yüzünden kilitli olan kelimeler
 function tahtaCiz(lv) {
   const tahta = $('tahta');
@@ -785,6 +789,13 @@ function tahtaCiz(lv) {
     }
   }
   tahta.style.setProperty('--kutu', kutu + 'px');
+  // Düzen (seviye, kutu boyu, gruplar) değişmediyse tahta baştan kurulmaz; yalnızca değişen kelime
+  // kutuları yenilenir. Böylece diğer kutular ve süren animasyonları yerinde kalır (mobilde akıcılık,
+  // iOS'ta yarıda kesilen animasyonların iz bırakmaması).
+  const duzen = [odaKodu, lv.kimlik, kutu, satirKapasite, Math.round(W), dar, uzunluklar.map((u) => u + ':' + gruplar[u].length).join(',')].join('|');
+  if (duzen === tahtaDuzen && tahta.childElementCount) { tahtaYamala(lv, gruplar, uzunluklar); return; }
+  tahtaDuzen = duzen;
+  slotEl = new Map(); slotImza = new Map(); grupEl = new Map();
   // Yeniden kurulumda tahtanın kendi kaydırma konumu korunur (yeni seviyede başa döner)
   const eskiKaydirma = tahtaLv === lv.kimlik ? tahta.scrollTop : 0;
   tahtaLv = lv.kimlik;
@@ -834,12 +845,15 @@ function tahtaCiz(lv) {
           yeniBulunan.add(i);
           if (!oncekiBulunan.has(i)) { el.classList.add('yeni'); efektler.push([el, s]); }
         }
+        slotEl.set(i, el);
+        slotImza.set(i, slotImzasi(s));
         sutun.appendChild(el);
       }
       govde.appendChild(sutun);
     }
     grup.append(baslik, cizgi, govde);
     tahta.appendChild(grup);
+    grupEl.set(uz, { grup, say });
   }
   // Bu güncellemeyle tamamlanan grubu kutla
   for (const [el] of efektler) {
@@ -852,6 +866,49 @@ function tahtaCiz(lv) {
   oncekiBulunan = yeniBulunan;
   oncekiBuzlu = new Set(lv.tahta.flatMap((s, i) => (s.bz ? [i] : [])));
   tahta.scrollTop = eskiKaydirma;
+  for (const [el, s] of efektler) slotEfekti(el, s);
+}
+
+// Kelime kutusunun görünümünü belirleyen her şey; değişmediyse kutu yeniden kurulmaz
+function slotImzasi(s) {
+  return [s.n, s.w || '', s.bulan || '', s.bulan ? ad(s.bulan) + renk(s.bulan) : '', s.puan ?? '', s.bulan === benimId ? 1 : 0, s.hz ? 1 : 0, s.bz ? 1 : 0, JSON.stringify(s.ip || [])].join('|');
+}
+
+// Düzen aynıyken tahtayı güncelle: değişen kutuları değiştir, grup başlıklarını tazele
+function tahtaYamala(lv, gruplar, uzunluklar) {
+  const efektler = [];
+  const yeniBulunan = new Set();
+  const faz = Math.round(performance.now() % 2400) + 'ms'; // yeni kutunun sürekli animasyonu diğerleriyle aynı fazda
+  lv.tahta.forEach((s, i) => {
+    if (s.bulan) yeniBulunan.add(i);
+    const imza = slotImzasi(s);
+    const eski = slotEl.get(i);
+    if (!eski || slotImza.get(i) === imza) return;
+    const el = slotOlustur(lv, s, i);
+    el.style.setProperty('--faz', faz);
+    if (s.bulan && !oncekiBulunan.has(i)) { el.classList.add('yeni'); efektler.push([el, s]); }
+    eski.replaceWith(el);
+    slotEl.set(i, el);
+    slotImza.set(i, imza);
+  });
+  for (const uz of uzunluklar) {
+    const g = grupEl.get(uz);
+    if (!g) continue;
+    const liste = gruplar[uz];
+    const bulunanSay = liste.filter(([s]) => s.bulan).length;
+    const tamam = bulunanSay === liste.length;
+    g.grup.style.setProperty('--oran', bulunanSay / liste.length);
+    g.say.textContent = tamam ? `✓ ${liste.length}` : `${bulunanSay}/${liste.length}`;
+    if (tamam && !g.grup.classList.contains('tamam')) {
+      g.grup.classList.add('tamam');
+      if (efektler.some(([el]) => g.grup.contains(el))) {
+        g.grup.classList.add('yeni-tamam');
+        if (D.durum === 'oyun') setTimeout(() => Ses.cal('yildiz', 2), 250);
+      }
+    }
+  }
+  oncekiBulunan = yeniBulunan;
+  oncekiBuzlu = new Set(lv.tahta.flatMap((s, i) => (s.bz ? [i] : [])));
   for (const [el, s] of efektler) slotEfekti(el, s);
 }
 

@@ -1,24 +1,40 @@
 // Kelime Avı — görsel efektler (konfeti, parçacık patlaması, uçan yazı, emoji tepkileri)
 const Efekt = (() => {
   const azHareket = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Dokunmatik cihazlarda (özellikle iOS) efektler sade: iz bırakabilecek büyük katmanlar yok
+  const dokunmatik = matchMedia('(hover: none) and (pointer: coarse)').matches;
   const RENKLER = ['#ffc83d', '#ff6b6b', '#4dabf7', '#51cf66', '#cc5de8', '#ff922b', '#20c997', '#f06595'];
 
+  // Tuval yalnızca parçacık varken sayfada durur; bitince temizlenip kaldırılır
+  // (iOS'ta sürekli duran tam ekran tuval, temizlense bile ekranda iz bırakabiliyordu)
   const tuval = document.createElement('canvas');
   tuval.className = 'efekt-tuval';
-  document.body.appendChild(tuval);
+  tuval.setAttribute('aria-hidden', 'true');
   const c = tuval.getContext('2d');
   let parcalar = [];
   let calisiyor = false;
   let dpr = 1;
   let son = 0;
+  let gw = innerWidth, gh = innerHeight; // tuvalin ekrandaki boyu (CSS piksel)
 
+  // Çizim tamponu tuvalin gerçek ekran boyuna göre (pencere ölçüsü iOS'ta farklı olabiliyor)
   function boyutla() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    tuval.width = Math.round(innerWidth * dpr);
-    tuval.height = Math.round(innerHeight * dpr);
+    dpr = Math.min(window.devicePixelRatio || 1, dokunmatik ? 1.5 : 2);
+    gw = tuval.clientWidth || innerWidth;
+    gh = tuval.clientHeight || innerHeight;
+    tuval.width = Math.round(gw * dpr);
+    tuval.height = Math.round(gh * dpr);
   }
-  boyutla();
-  addEventListener('resize', boyutla);
+  function tuvaliAc() { if (!tuval.isConnected) { document.body.appendChild(tuval); boyutla(); } }
+  function tuvaliKapat() {
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, tuval.width, tuval.height);
+    tuval.width = tuval.width; // tamponu tamamen sıfırla
+    tuval.remove();
+  }
+  const yenidenBoyutla = () => { if (tuval.isConnected) boyutla(); };
+  addEventListener('resize', yenidenBoyutla);
+  window.visualViewport?.addEventListener('resize', yenidenBoyutla);
 
   const rast = (a, b) => a + Math.random() * (b - a);
 
@@ -26,7 +42,7 @@ const Efekt = (() => {
     const adim = son ? Math.min(3, (t - son) / 16.67) : 1;
     son = t;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c.clearRect(0, 0, innerWidth, innerHeight);
+    c.clearRect(0, 0, gw, gh);
     for (const p of parcalar) {
       const s = Math.pow(p.s, adim);
       p.vx *= s;
@@ -50,17 +66,19 @@ const Efekt = (() => {
         c.fill();
       }
     }
-    parcalar = parcalar.filter((p) => p.omur > 0 && p.y < innerHeight + 60);
+    parcalar = parcalar.filter((p) => p.omur > 0 && p.y < gh + 60);
     c.globalAlpha = 1;
     if (parcalar.length) requestAnimationFrame(dongu);
-    else { calisiyor = false; son = 0; c.clearRect(0, 0, innerWidth, innerHeight); }
+    else { calisiyor = false; son = 0; tuvaliKapat(); }
   }
 
   function ekle(liste) {
     if (azHareket) liste = liste.slice(0, Math.ceil(liste.length / 5));
+    else if (dokunmatik) liste = liste.slice(0, Math.ceil(liste.length * 0.6));
     parcalar.push(...liste);
-    if (parcalar.length > 1000) parcalar.splice(0, parcalar.length - 1000);
-    if (!calisiyor) { calisiyor = true; requestAnimationFrame(dongu); }
+    const tavan = dokunmatik ? 500 : 1000;
+    if (parcalar.length > tavan) parcalar.splice(0, parcalar.length - tavan);
+    if (!calisiyor) { tuvaliAc(); calisiyor = true; requestAnimationFrame(dongu); }
   }
 
   // Bir noktadan her yöne saçılan küçük parçacıklar
@@ -140,17 +158,21 @@ const Efekt = (() => {
     const yukari = -Math.min(110, 40 + Math.abs(dy) * 0.25);
     const sure = 620 + Math.min(320, Math.hypot(dx, dy) * 0.35);
     const tr = (x, y, s) => `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${s})`;
+    const tepe = dokunmatik ? 1.1 : 1.3;
     const anim = el.animate([
       { transform: tr(0, 0, 0.5), opacity: 0 },
-      { transform: tr(dx * 0.08 + yan * 0.4, yukari * 0.7, 1.3), opacity: 1, offset: 0.22 },
+      { transform: tr(dx * 0.08 + yan * 0.4, yukari * 0.7, tepe), opacity: 1, offset: 0.22 },
       { transform: tr(dx * 0.5 + yan, dy * 0.45 + yukari, 1), opacity: 1, offset: 0.6 },
-      { transform: tr(dx, dy, 0.55), opacity: 0.85 },
-    ], { duration: sure, easing: 'cubic-bezier(.5,0,.6,1)' });
-    anim.onfinish = () => { el.remove(); if (bitince) bitince(); };
+      { transform: tr(dx, dy, 0.55), opacity: 0 },
+    ], { duration: sure, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'forwards' });
+    let bitti = false;
+    const kaldir = () => { if (bitti) return; bitti = true; anim.cancel(); el.remove(); if (bitince) bitince(); };
+    anim.onfinish = kaldir;
+    setTimeout(kaldir, sure + 250); // animasyon bitiş olayı gelmezse de kaldır
   }
 
   function flas(renk = 'rgba(255,200,61,.35)') {
-    if (azHareket) return;
+    if (azHareket || dokunmatik) return;
     const el = document.createElement('div');
     el.className = 'flas';
     el.style.background = `radial-gradient(circle at 50% 55%, ${renk}, transparent 70%)`;

@@ -270,12 +270,14 @@ body.son-hamle .tahmin-form input { border-color: #ff6b8a; }
 @keyframes nabizKucuk { to { transform: scale(1.08); } }
 
 /* Son 10 saniye: kenarlarda kırmızı nabız */
-body.son-saniye::after {
-  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 5;
-  box-shadow: inset 0 0 110px rgba(255, 60, 90, .45);
-  animation: kenarNabiz 1s ease-in-out infinite;
+/* Kalıcı öğe; yalnızca opaklığı değişir (iOS'ta eklenip kaldırılan animasyonlu katman iz bırakıyordu) */
+.kenar-nabiz {
+  position: fixed; inset: 0; pointer-events: none; z-index: 5; opacity: 0; visibility: hidden;
+  box-shadow: inset 0 0 110px rgba(255, 60, 90, .45); transition: opacity .3s, visibility 0s .3s;
 }
-@keyframes kenarNabiz { 50% { box-shadow: inset 0 0 50px rgba(255, 60, 90, .2); } }
+.kenar-nabiz.acik { visibility: visible; opacity: 1; transition: opacity .3s; animation: kenarNabiz 1s ease-in-out infinite; }
+@keyframes kenarNabiz { 50% { opacity: .45; } }
+body.tur-sonu-acik .kenar-nabiz { opacity: 0; animation: none; }
 
 /* ---------- Oyun gövdesi ---------- */
 .oyun-govde { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; }
@@ -1100,8 +1102,9 @@ body.sonuc-acik .afis { transform-origin: top; }
 }
 
 /* Ortam ışığı: yavaşça kayan renkli ışık kümeleri + ince doku */
-html { background: #0c0a22; }
-body { background: transparent; }
+html { background: #0c0a22; touch-action: manipulation; } /* çift dokunma yakınlaştırması yok */
+body { background: transparent; opacity: var(--tazele, 1); } /* --tazele: iOS'ta bir karelik yeniden boyama */
+button { -webkit-tap-highlight-color: transparent; }
 html::before {
   content: ''; position: fixed; inset: -25%; z-index: 0; pointer-events: none;
   background:
@@ -1407,6 +1410,35 @@ kbd { font: inherit; font-size: 12px; font-weight: 700; padding: 1px 6px; border
   body.klavye .tahta { min-height: 70px; }
   body.klavye .yazma-alani { padding-bottom: 6px; }
   body.klavye .yazma-ust { min-height: 18px; }
+}
+
+/* ---------- Dokunmatik cihazlar: güvenli ve akıcı çizim ----------
+   iOS Safari; arka plan bulanıklığı, tam ekran karışım modu, maske ve filtreli/animasyonlu büyük
+   katmanlar gizlendikten sonra ekranda iz (renkli ışık) bırakabiliyor ve telefonları yoruyor.
+   Dokunmatik ekranlarda bu efektler sade karşılıklarıyla değiştirilir. */
+@media (hover: none) and (pointer: coarse) {
+  html::before { animation: none; }
+  html::after { display: none; }
+  .kart, .ust-bar, .katman, .sag > .panel, .sag > .sohbet-yeri, .baslat-alani .bekle {
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+  .kart { background: rgba(33, 28, 84, .95); border-color: rgba(255, 255, 255, .1); }
+  .kart::before { display: none !important; }
+  .ust-bar { background: rgba(22, 18, 58, .97); }
+  .katman { background: rgba(8, 6, 26, .84); }
+  .sure { filter: none; }
+  /* Degrade yazılar: filtre yerine yazı gölgesi */
+  .logo b, .buyuk-kod { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--vurgu); filter: none; text-shadow: 0 0 22px rgba(255, 200, 61, .45); }
+  .ts-baslik, .tur-sonu.gecti .ts-baslik { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: #fff; filter: none; text-shadow: 0 4px 0 rgba(var(--ana), .4), 0 0 26px rgba(var(--ana), .6); }
+  .ts-halka, .ts-isaret { filter: none; }
+  .ts-isinlar i { animation: none; }
+  .ts-atlama::after, .ts-amblem::before { display: none; }
+  /* Dokunduktan sonra takılı kalan hover efektleri */
+  .tas:hover:not(:disabled) { transform: none; filter: none; }
+  .tas.kullanildi:hover:not(:disabled) { transform: translateY(5px) scale(.92); }
+  .tas:active:not(:disabled) { transform: translateY(2px); }
+  .dil-secim button:hover:not(:disabled), .zorluk-secim button:hover:not(:disabled), .tepki-btn:hover, .logo span:hover { transform: none; }
+  .btn.ana:hover:not(:disabled)::after { animation: none; }
 }
 
 /* "Saydamlığı azalt" açık olanlar için cam yüzeyler düz zemin olur */

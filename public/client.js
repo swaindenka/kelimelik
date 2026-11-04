@@ -11,6 +11,20 @@ const trKucuk = (s) => (oyunDili() === 'en'
 const kaydet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const oku = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const dokunmatik = matchMedia('(pointer: coarse)').matches;
+const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (iOS) {
+  // iOS Safari maximum-scale'i yalnızca otomatik yakınlaştırmada uygular; kullanıcı yine iki parmakla yakınlaştırabilir
+  const vp = document.querySelector('meta[name=viewport]');
+  if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1';
+  document.documentElement.classList.add('ios');
+}
+// iOS'ta katman kapandıktan sonra ekranda iz kalmasın diye sayfayı bir kare yeniden boyatır
+function boyaTazele() {
+  if (!iOS) return;
+  const k = document.documentElement;
+  k.style.setProperty('--tazele', '0.999');
+  requestAnimationFrame(() => requestAnimationFrame(() => k.style.removeProperty('--tazele')));
+}
 const azHareket = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TEPKILER = ['👏', '🔥', '😂', '😮', '😭', '❤️', '👍', '🎉'];
 
@@ -137,6 +151,7 @@ function odadanAyril() {
   $('sonucAcBtn').classList.add('gizli');
   $('baglanti').classList.add('gizli');
   document.body.classList.remove('son-hamle', 'son-saniye');
+  $('kenarNabiz').classList.remove('acik');
   $('tahmin').value = '';
   $('kodGir').value = '';
   $('girisHata').textContent = '';
@@ -1278,7 +1293,9 @@ for (const e of TEPKILER) {
 
 // ---------- Sonuç ekranı ----------
 function sonucKatmani(goster) {
+  const acikti = !$('sonucKatman').classList.contains('gizli');
   $('sonucKatman').classList.toggle('gizli', !goster);
+  if (acikti && !goster) boyaTazele();
   document.body.classList.toggle('sonuc-acik', goster); // afişler sonuç kartını kapatmasın
   $('sonucAcBtn').classList.toggle('gizli', goster || !D || D.durum === 'oyun' || !D.sonSonuc || turSonuAcik());
 }
@@ -1407,6 +1424,7 @@ function turSonuKapat(karti) {
     el.classList.add('gizli');
     el.classList.remove('cikis');
     el.querySelector('.ts-isinlar')?.remove(); // dönen katmanı DOM'dan kaldır (iOS'ta hayalet kalmasın)
+    boyaTazele();
     document.body.classList.remove('tur-sonu-acik');
     if (karti && bekleyenKart && D?.sonSonuc && D.durum !== 'oyun') { sonucKatmani(true); sonucCiz(false); }
     bekleyenKart = false;
@@ -1627,6 +1645,14 @@ function seriGoster(seri, bonus) {
   }
 }
 
+// Mobilde yazarken Gönder, Sil, İpucu ve taşlar odağı yazma kutusundan almasın: aksi hâlde her
+// dokunuşta klavye kapanıp açılıyor, ekran sıkışık düzenle normal düzen arasında zıplıyordu.
+function odagiKoru(e) { if (document.activeElement === $('tahmin')) e.preventDefault(); }
+for (const el of [$('tahminForm').querySelector('button[type=submit]'), $('silBtn'), $('ipucuBtn'), $('harfler')]) {
+  el.addEventListener('pointerdown', odagiKoru);
+  el.addEventListener('mousedown', odagiKoru);
+}
+
 $('tahminForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const metin = $('tahmin').value.trim();
@@ -1828,7 +1854,7 @@ setInterval(() => {
   }
   sonHamleOnce = hamle;
 
-  if (!D.bitis || D.durum === 'lobi') { document.body.classList.remove('son-saniye'); return; }
+  if (!D.bitis || D.durum === 'lobi') { document.body.classList.remove('son-saniye'); $('kenarNabiz').classList.remove('acik'); return; }
   const kalan = Math.max(0, kalanMs);
   const sn = Math.ceil(kalan / 1000);
   const cubuk = $('zamanCubugu');
@@ -1849,12 +1875,14 @@ setInterval(() => {
     $('sure').classList.toggle('az', sn <= 15);
     $('sure').classList.toggle('cok-az', sn <= 5);
     document.body.classList.toggle('son-saniye', sn <= 10 && sn > 0);
+    $('kenarNabiz').classList.toggle('acik', sn <= 10 && sn > 0);
     if (sonSaniye !== null && sn !== sonSaniye && sn <= 10 && sn > 0) {
       Ses.cal(sn <= 3 ? 'tikAcil' : 'tik');
       yenidenOynat($('sureYazi'), 'zipla');
     }
   } else {
     document.body.classList.remove('son-saniye');
+    $('kenarNabiz').classList.remove('acik');
     $('sure').classList.remove('az', 'cok-az');
     if (D.durum === 'sonuc') {
       $('sureYazi').textContent = '–';

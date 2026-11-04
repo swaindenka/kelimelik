@@ -177,15 +177,80 @@ const yenidenOynat = (el, sinif) => { el.classList.remove(sinif); void el.offset
 
 function davetLinki() { return location.origin + location.pathname + '?oda=' + odaKodu; }
 function bildir(metin) {
+  for (const eski of document.querySelectorAll('.kopyalandi')) eski.remove();
   const el = document.createElement('div');
   el.className = 'kopyalandi'; el.textContent = metin;
-  document.body.appendChild(el); setTimeout(() => el.remove(), 1600);
+  el.setAttribute('role', 'status');
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2200);
 }
+
+// Pano API'si olmayan ya da izin vermeyen yerler için (http adresleri, uygulama içi tarayıcılar):
+// görünmez bir kutudaki metni seçip kopyalar. Kullanıcı dokunuşu sırasında çağrılmalı.
+function eskiYontemleKopyala(metin) {
+  const t = document.createElement('textarea');
+  t.value = metin;
+  t.setAttribute('readonly', '');
+  // 16px: iOS odaklanınca yakınlaştırmasın; ekran dışında ama seçilebilir
+  t.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:1px;opacity:0;font-size:16px;';
+  document.body.appendChild(t);
+  t.focus();
+  t.select();
+  t.setSelectionRange(0, metin.length);
+  let tamam = false;
+  try { tamam = document.execCommand('copy'); } catch { tamam = false; }
+  t.remove();
+  return tamam;
+}
+
+// Davet linkini kopyala: önce pano API'si, olmazsa eski yöntem, o da olmazsa linki seçilebilir göster
 async function linkKopyala() {
-  try { await navigator.clipboard.writeText(davetLinki()); bildir('Link kopyalandı!'); Ses.cal('tikla'); }
-  catch { prompt('Davet linki:', davetLinki()); }
+  const link = davetLinki();
+  let tamam = false;
+  if (window.isSecureContext && navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(link); tamam = true; } catch { tamam = false; }
+  }
+  if (!tamam) tamam = eskiYontemleKopyala(link);
+  if (tamam) { bildir('✓ Davet linki kopyalandı'); Ses.cal('tikla'); }
+  else davetKutusu(link);
 }
+
+// Telefonlarda paylaşma menüsü (WhatsApp, Mesajlar…); desteklenmezse kopyalamaya düşer
+const paylasVar = typeof navigator.share === 'function';
+async function linkPaylas() {
+  const link = davetLinki();
+  try {
+    await navigator.share({ title: 'Kelime Avı', text: `Kelime Avı odama gel! Oda kodu: ${odaKodu}`, url: link });
+  } catch (e) {
+    if (e?.name !== 'AbortError') linkKopyala(); // kullanıcı vazgeçtiyse bir şey yapma
+  }
+}
+
+function davetKutusu(link) {
+  $('davetGirdi').value = link;
+  $('davetKod').textContent = odaKodu || '';
+  $('davetPaylas').classList.toggle('gizli', !paylasVar);
+  $('menuKatman').classList.add('gizli');
+  $('davetKatman').classList.remove('gizli');
+  requestAnimationFrame(() => { $('davetGirdi').focus(); $('davetGirdi').setSelectionRange(0, link.length); });
+}
+function davetKapat() { $('davetKatman').classList.add('gizli'); }
+$('davetGirdi').addEventListener('focus', () => $('davetGirdi').setSelectionRange(0, $('davetGirdi').value.length));
+$('davetKopyala').onclick = async () => {
+  const link = $('davetGirdi').value;
+  let tamam = eskiYontemleKopyala(link);
+  if (!tamam && window.isSecureContext && navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(link); tamam = true; } catch { tamam = false; }
+  }
+  if (tamam) { davetKapat(); bildir('✓ Davet linki kopyalandı'); Ses.cal('tikla'); }
+  else { $('davetGirdi').focus(); bildir('Linke basılı tutup "Kopyala"yı seç'); }
+};
+$('davetPaylas').onclick = () => { davetKapat(); linkPaylas(); };
+$('davetKapat').onclick = davetKapat;
+$('davetKatman').addEventListener('click', (e) => { if (e.target === $('davetKatman')) davetKapat(); });
+
 $('linkKopyala').onclick = linkKopyala;
+$('linkPaylas').classList.toggle('gizli', !(paylasVar && dokunmatik));
+$('linkPaylas').onclick = linkPaylas;
 $('menuLink').onclick = linkKopyala;
 
 // Ekranın ortasında beliren büyük duyuru. Afişler üst üste binmesin diye sırayla gösterilir;
@@ -1711,6 +1776,7 @@ function tahminSonucu(c) {
 // Oyun ekranında herhangi bir harfe basınca tahmin kutusuna odaklan
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    if (!$('davetKatman').classList.contains('gizli')) { davetKapat(); return; }
     if (!$('kuralKatman').classList.contains('gizli')) { kurallar(false); return; }
     $('menuKatman').classList.add('gizli'); if (D?.durum !== 'oyun') sonucKatmani(false);
   }

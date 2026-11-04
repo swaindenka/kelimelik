@@ -1085,7 +1085,18 @@ body.sonuc-acik .afis { transform-origin: top; }
 @keyframes flas { from { opacity: 1; } to { opacity: 0; } }
 
 .baglanti { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--kotu); color: #fff; padding: 10px 18px; border-radius: 10px; z-index: 40; }
-.kopyalandi { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--iyi); color: #062; padding: 10px 18px; border-radius: 10px; z-index: 40; font-weight: 500; animation: gir .25s ease-out; }
+.kopyalandi {
+  position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 40;
+  max-width: calc(100vw - 32px); padding: 11px 18px; border-radius: 12px; font-weight: 700; text-align: center;
+  background: var(--iyi); color: #062; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); animation: gir .25s ease-out;
+}
+/* Davet linki penceresi */
+.davet-kart { width: min(460px, 100%); padding: 0 0 20px; display: flex; flex-direction: column; gap: 12px; animation: gir .3s var(--gecis); }
+.davet-kart > :not(.kural-ust) { margin: 0 22px; }
+.davet-not { color: var(--soluk); font-size: 14px; }
+.davet-girdi { width: auto; min-width: 0; font-size: 16px; font-weight: 700; color: var(--vurgu); text-align: center; -webkit-user-select: text; user-select: text; }
+.davet-kod { text-align: center; color: var(--soluk); }
+.davet-kod b { color: var(--yazi); letter-spacing: 4px; font-size: 18px; }
 
 /* =====================================================================
    Görsel katman: cam yüzeyler, ortam ışığı, tutarlı tasarım değişkenleri
@@ -1388,6 +1399,7 @@ kbd { font: inherit; font-size: 12px; font-weight: 700; padding: 1px 6px; border
   .sonuc-ac { bottom: calc(86px + env(safe-area-inset-bottom)); }
   /* iOS'ta 16px altındaki girişler odaklanınca sayfayı yakınlaştırıp kaydırır */
   .sohbet-form input { font-size: 16px; }
+  .kopyalandi { bottom: calc(96px + env(safe-area-inset-bottom)); }
   .ts-ust { font-size: 10.5px; letter-spacing: 1.5px; padding: 5px 12px; }
   .son-hamle-rozet { order: 3; font-size: 11px; padding: 4px 9px; }
   .patron-can .pc-ad { display: none; }

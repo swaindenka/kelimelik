@@ -83,6 +83,7 @@
           <button id="lobiMuzik" class="btn ikon hayalet" title="Müzik">🎵</button>
           <button type="button" class="btn kucuk kural-ac" title="Kurallar">📖 Kurallar</button>
           <button id="linkKopyala" class="btn kucuk">🔗 Davet linkini kopyala</button>
+          <button id="linkPaylas" class="btn kucuk gizli" title="WhatsApp, Mesajlar… ile paylaş">📤 Paylaş</button>
           <button id="lobiAyril" class="btn kucuk cikis-btn" title="Odadan ayrıl ve giriş ekranına dön">🚪 Ayrıl</button>
         </div>
       </header>
@@ -272,6 +273,23 @@
         <input id="sohbetGirdi" maxlength="200" placeholder="Mesaj yaz…" autocomplete="off" enterkeyhint="send">
         <button class="btn kucuk ana" type="submit" title="Gönder">➤</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Davet linki: otomatik kopyalanamazsa link burada seçilebilir hâlde gösterilir -->
+  <div id="davetKatman" class="katman gizli" role="dialog" aria-modal="true" aria-labelledby="davetBaslik">
+    <div class="kart davet-kart">
+      <div class="kural-ust">
+        <h2 id="davetBaslik">🔗 Davet linki</h2>
+        <button type="button" id="davetKapat" class="btn ikon hayalet" title="Kapat" aria-label="Kapat">✕</button>
+      </div>
+      <p class="davet-not">Bu tarayıcı otomatik kopyalamaya izin vermedi. Linke dokunup kopyalayabilirsin:</p>
+      <input id="davetGirdi" class="davet-girdi" readonly aria-label="Davet linki">
+      <div class="davet-kod">Oda kodu: <b id="davetKod"></b></div>
+      <div class="satir merkez">
+        <button type="button" id="davetKopyala" class="btn ana">Kopyala</button>
+        <button type="button" id="davetPaylas" class="btn gizli">📤 Paylaş</button>
+      </div>
     </div>
   </div>
 

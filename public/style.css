@@ -1102,7 +1102,14 @@ body.sonuc-acik .afis { transform-origin: top; }
 }
 
 /* Ortam ışığı: yavaşça kayan renkli ışık kümeleri + ince doku */
-html { background: #0c0a22; touch-action: manipulation; } /* çift dokunma yakınlaştırması yok */
+html { background: #0c0a22; }
+/* Çift dokunma yakınlaştırması kapalı. touch-action kalıtılmaz ve kaydırılabilir alanları geçmez,
+   bu yüzden her öğeye verilir (kaydırma ve iki parmakla yakınlaştırma çalışmaya devam eder). */
+*, *::before, *::after { touch-action: manipulation; }
+/* Oyun alanında uzun basınca iOS metin seçme büyütecı ve menüsü açılmasın */
+.ust-bar, .sahne, .tahta, .bonus-satir, .tur-serit, .skor, .yazma-ust, .tahmin-form .btn, .tepkiler, .sonuc-kart {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
 body { background: transparent; opacity: var(--tazele, 1); } /* --tazele: iOS'ta bir karelik yeniden boyama */
 button { -webkit-tap-highlight-color: transparent; }
 html::before {
@@ -1361,7 +1368,7 @@ kbd { font: inherit; font-size: 12px; font-weight: 700; padding: 1px 6px; border
   .sahne { padding: 20px 8px 8px; gap: 8px; border-radius: 20px; margin-top: 6px; }
   .harfler { --kenar: 8px; --bosluk: clamp(4px, 1.6cqi, 10px); }
   /* Taşlar görünür yüksekliğe göre de sınırlanır (klavye açıkken küçülür) */
-  .tas { --b: clamp(24px, min(calc((100cqi - var(--kenar, 40px) - (var(--adet) - 1) * var(--bosluk)) / var(--adet)), calc(var(--vvh, 100vh) * .095)), 104px); }
+  .tas { --b: clamp(24px, min(calc((100cqi - var(--kenar, 40px) - (var(--adet) - 1) * var(--bosluk)) / var(--adet)), calc(var(--vvh-tas, var(--vvh, 100vh)) * .095)), 104px); }
   .sahne .kose.k1::after, .sahne .kose.k2::after { display: none; }
   .sahne-alt { min-height: 30px; }
   .ipucu-btn { padding: 6px 10px; font-size: 13px; white-space: nowrap; }

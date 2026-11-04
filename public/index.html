@@ -3,6 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <script>
+    // iOS: yazma kutusuna odaklanınca ve içerik değişince otomatik yakınlaştırma olmasın.
+    // iOS bu ayarı yalnızca otomatik yakınlaştırmada uygular; iki parmakla yakınlaştırma açık kalır.
+    if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+      document.querySelector('meta[name=viewport]').content = 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover';
+    }
+  </script>
   <meta name="theme-color" content="#12102a">
   <title>Kelime Avı — Türkçe Kelime Bilgisi Alıştırması</title>
   <meta name="description" content="Kelime Avı, verilen harflerden Türkçe sözcük türeterek kelime dağarcığını geliştirmeye yarayan, arkadaşlarla birlikte kullanılabilen ücretsiz bir Türkçe dil alıştırmasıdır.">
@@ -55,7 +62,7 @@
       <button id="odaKur" class="btn ana genis">✨ Yeni oda kur</button>
       <div class="ayrac"><span>ya da bir odaya katıl</span></div>
       <div class="satir">
-        <input id="kodGir" maxlength="4" placeholder="ODA KODU" class="kod-input" aria-label="Oda kodu">
+        <input id="kodGir" maxlength="4" placeholder="ODA KODU" class="kod-input" aria-label="Oda kodu" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go">
         <button id="katil" class="btn">Katıl →</button>
       </div>
       <p id="girisHata" class="hata"></p>
@@ -193,7 +200,7 @@
           </div>
           <form id="tahminForm" class="tahmin-form" autocomplete="off">
             <button type="button" id="silBtn" class="btn ikon" title="Son harfi sil">⌫</button>
-            <input id="tahmin" placeholder="Kelimeyi yaz, Enter'a bas…" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100">
+            <input id="tahmin" placeholder="Kelimeyi yaz, Enter'a bas…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" maxlength="100">
             <button class="btn ana" type="submit">Gönder</button>
           </form>
         </div>
@@ -262,7 +269,7 @@
       <ul id="sohbetListe" class="sohbet-liste"></ul>
       <div id="tepkiler" class="tepkiler"></div>
       <form id="sohbetForm" class="sohbet-form" autocomplete="off">
-        <input id="sohbetGirdi" maxlength="200" placeholder="Mesaj yaz…" autocomplete="off">
+        <input id="sohbetGirdi" maxlength="200" placeholder="Mesaj yaz…" autocomplete="off" enterkeyhint="send">
         <button class="btn kucuk ana" type="submit" title="Gönder">➤</button>
       </form>
     </div>

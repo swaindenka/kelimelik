@@ -26,6 +26,8 @@ Sonra tarayıcıda `http://localhost:3000` adresini aç. Port değiştirmek içi
 
 Oda kurduktan sonra lobideki **Davet linkini kopyala** butonuyla linki paylaş. Arkadaşlar linke tıklayıp ismini yazınca odaya girer.
 
+**Açık odalar:** Giriş ekranında şu an açık olan odalar (kurucusu, oyuncu sayısı, lobide mi oyunda mı, dil ve zorluk) canlı olarak listelenir; birine dokunup doğrudan katılabilirsin. Yeni kurulan odalar varsayılan olarak listede görünür. Oda sahibi lobideki ayarlardan **🌍 Açık odalar listesinde görünsün** seçeneğini kapatırsa oda gizlenir ve yalnızca kod ya da davet linkiyle katılınır.
+
 ## Oyun kuralları
 
 | Mekanik | Açıklama |

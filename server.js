@@ -51,7 +51,8 @@ function yeniOda(sahipId) {
     sahip: sahipId,
     oyuncular: new Map(),
     // ilerleme: 'yildiz' (yıldız kadar seviye) | 'tek' · dil: kelimelerin dili ('tr' | 'en')
-    ayar: { sure: 100, can: 3, zorluk: 'normal', ilerleme: 'yildiz', dil: 'tr' },
+    // acik: oda, giriş ekranındaki "Açık odalar" listesinde görünür (oda sahibi kapatabilir)
+    ayar: { sure: 100, can: 3, zorluk: 'normal', ilerleme: 'yildiz', dil: 'tr', acik: true },
     hazir: new Set(), // seviye arasında "hazırım" diyenler
     durum: 'lobi', // lobi | oyun | sonuc | bitti
     seviye: 1,
@@ -180,6 +181,7 @@ function genelDurum(oda) {
 
 function yayinla(oda) {
   io.to(oda.kod).emit('durum', genelDurum(oda));
+  listeDegisti();
 }
 
 // Seviye bitiş zamanlayıcısını (yeniden) kur — hazine kelime süreyi uzatabildiği için ayrı tutulur
@@ -497,6 +499,45 @@ function sahipAktar(oda) {
   }
 }
 
+// ---------- Açık oda listesi ----------
+// Giriş ekranındaki istemciler 'liste' odasına katılır; değişiklikler en çok saniyede bir yayınlanır
+const LISTE = 'liste';
+const ODA_SINIRI = 30;
+function acikOdalar() {
+  const liste = [];
+  for (const oda of odalar.values()) {
+    if (!oda.ayar.acik) continue;
+    const bagli = [...oda.oyuncular.values()].filter((p) => p.bagli).length;
+    if (!bagli || oda.oyuncular.size >= ODA_SINIRI) continue;
+    liste.push({
+      kod: oda.kod,
+      sahip: oda.oyuncular.get(oda.sahip)?.isim || '?',
+      oyuncu: bagli,
+      durum: oda.durum,
+      seviye: oda.seviye,
+      dil: oda.ayar.dil,
+      zorluk: oda.ayar.zorluk,
+    });
+  }
+  // Önce lobide bekleyenler, sonra kalabalık olanlar
+  liste.sort((a, b) => (a.durum === 'lobi' ? 0 : 1) - (b.durum === 'lobi' ? 0 : 1) || b.oyuncu - a.oyuncu);
+  return liste.slice(0, 50);
+}
+let listeZamanlayici = null;
+let sonListe = '';
+function listeDegisti() {
+  if (listeZamanlayici) return;
+  listeZamanlayici = setTimeout(() => {
+    listeZamanlayici = null;
+    if (!io.sockets.adapter.rooms.get(LISTE)?.size) { sonListe = ''; return; }
+    const liste = acikOdalar();
+    const imza = JSON.stringify(liste);
+    if (imza === sonListe) return; // oyun içi puan değişimleri listeyi etkilemez
+    sonListe = imza;
+    io.to(LISTE).emit('odaListesi', liste);
+  }, 1000);
+}
+
 // Kısa aralıkta en fazla `adet` işleme izin veren basit sınırlayıcı
 function sinirlayici(adet, pencere) {
   let zamanlar = [];
@@ -516,6 +557,14 @@ io.on('connection', (socket) => {
   const sohbetSiniri = sinirlayici(6, 5000);
   const tepkiSiniri = sinirlayici(4, 2000);
 
+  // Giriş ekranı: açık odaları izle / izlemeyi bırak
+  socket.on('listeIzle', () => {
+    if (oda) return;
+    socket.join(LISTE);
+    socket.emit('odaListesi', acikOdalar());
+  });
+  socket.on('listeBirak', () => socket.leave(LISTE));
+
   socket.on('katil', ({ kod, isim, oyuncuId } = {}, cevap) => {
     if (typeof cevap !== 'function') return;
     isim = isimTemizle(isim);
@@ -530,7 +579,7 @@ io.on('connection', (socket) => {
       oyuncu.isim = isim;
       if (oyuncu.socketId && oyuncu.socketId !== socket.id) io.sockets.sockets.get(oyuncu.socketId)?.disconnect(true);
     } else {
-      if (oda.oyuncular.size >= 30) return cevap({ hata: 'Oda dolu (en fazla 30 kişi).' });
+      if (oda.oyuncular.size >= ODA_SINIRI) return cevap({ hata: `Oda dolu (en fazla ${ODA_SINIRI} kişi).` });
       const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
       oyuncu = { id, isim, renk: RENKLER[oda.oyuncular.size % RENKLER.length], puan: 0, seviyePuan: 0, seviyeKelime: 0, seri: 0, sonBulma: 0 };
       oda.oyuncular.set(id, oyuncu);
@@ -542,6 +591,7 @@ io.on('connection', (socket) => {
     oda.bosSince = 0;
     if (!oda.sahip) oda.sahip = oyuncu.id;
     sahipAktar(oda);
+    socket.leave(LISTE);
     socket.join(oda.kod);
     cevap({ ok: true, kod: oda.kod, oyuncuId: oyuncu.id, akis: oda.akis, sohbet: oda.sohbet });
     yayinla(oda);
@@ -550,7 +600,10 @@ io.on('connection', (socket) => {
   const sahipMi = () => oda && oyuncu && oda.sahip === oyuncu.id;
 
   socket.on('ayar', (a) => {
-    if (!sahipMi() || oda.durum === 'oyun') return;
+    if (!sahipMi()) return;
+    // Listede görünme ayarı her an değiştirilebilir
+    if (typeof a?.acik === 'boolean') oda.ayar.acik = a.acik;
+    if (oda.durum === 'oyun') return yayinla(oda);
     const sure = Number(a?.sure);
     const can = Number(a?.can);
     if ([60, 80, 100, 120, 150, 180].includes(sure)) oda.ayar.sure = sure;
@@ -713,6 +766,7 @@ io.on('connection', (socket) => {
       // Odada kimse kalmadı: odayı hemen kapat
       zamanlayiciTemizle(o);
       odalar.delete(o.kod);
+      listeDegisti();
       return;
     }
     sohbetEkle(o, { tur: 'sistem', olay: 'ayrildi', metin: `${p.isim} odadan ayrıldı` });
@@ -739,6 +793,7 @@ setInterval(() => {
     if (oda.bosSince && Date.now() - oda.bosSince > 15 * 60 * 1000) {
       zamanlayiciTemizle(oda);
       odalar.delete(kod);
+      listeDegisti();
     }
   }
 }, 60 * 1000);

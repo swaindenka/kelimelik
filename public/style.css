@@ -1495,3 +1495,32 @@ kbd { font: inherit; font-size: 12px; font-weight: 700; padding: 1px 6px; border
   .arka-harfler, body.son-saniye::after { display: none; }
   .tas.gizli-harf, .sure.cok-az, .karistir-gosterge .ikon-donen, .slot.hazine .k, .slot .hz-rozet, .son-hamle-rozet, .sonuc-sonraki { animation: none !important; }
 }
+
+/* ---------- Açık odalar listesi (giriş) ---------- */
+.acik-odalar { display: flex; flex-direction: column; gap: 10px; }
+.acik-odalar .ayrac span { display: inline-flex; align-items: center; gap: 6px; }
+.oda-listesi { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 236px; overflow-y: auto; overscroll-behavior: contain; }
+.oda-listesi li.bos { text-align: center; font-size: 13px; color: var(--soluk); padding: 10px 6px; }
+.oda-satir {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; text-align: left;
+  color: var(--yazi); font: inherit; background: rgba(255, 255, 255, .045); border: 1px solid var(--cam-kenar); border-radius: 14px;
+  transition: border-color .15s, background .15s, transform .1s; animation: gir .3s ease-out;
+}
+.oda-satir:hover { border-color: var(--cam-kenar-guclu); background: rgba(255, 255, 255, .08); }
+.oda-satir:active { transform: scale(.985); }
+.oda-satir:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
+.oda-satir.lobide { border-color: rgba(74, 222, 128, .35); }
+.oda-bilgi { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.oda-ad { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oda-alt { font-size: 12px; color: var(--soluk); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oda-satir.lobide .oda-alt { color: #9be8b6; }
+.oda-sayi { font-size: 13px; color: #d6d2f5; white-space: nowrap; }
+.oda-katil { font-size: 13px; font-weight: 700; color: var(--vurgu); white-space: nowrap; }
+@media (max-width: 380px) { .oda-katil { display: none; } }
+
+/* Lobi: listede görünme ayarı */
+.acik-ayar { gap: 12px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .04); border: 1px solid var(--cam-kenar); cursor: pointer; }
+.acik-ayar > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.acik-ayar b { font-size: 13.5px; font-weight: 500; }
+.acik-ayar small { font-size: 12px; color: var(--soluk); }
+.acik-ayar input:disabled { cursor: default; }

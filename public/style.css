@@ -829,8 +829,7 @@ body.tur-sonu-acik .son-sayac, body.sonuc-acik .son-sayac { display: none; }
 .tur-sonu {
   --ana: 74, 222, 128; --ikinci: 255, 200, 61;
   position: fixed; inset: 0; z-index: 28; display: grid; place-items: center; padding: 20px; overflow: hidden; cursor: pointer;
-  background: radial-gradient(circle at 50% 44%, rgba(var(--ana), .3), rgba(12, 10, 32, .9) 58%, rgba(8, 6, 22, .96));
-  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  background: radial-gradient(circle at 50% 44%, rgba(var(--ana), .3), rgba(12, 10, 32, .92) 58%, rgba(8, 6, 22, .97)), rgba(10, 8, 28, .55);
   animation: tsGir .3s ease-out;
 }
 .tur-sonu.kaldi { --ana: 255, 93, 115; --ikinci: 255, 138, 61; }
@@ -839,13 +838,23 @@ body.tur-sonu-acik .son-sayac, body.sonuc-acik .son-sayac { display: none; }
 @keyframes tsGir { from { opacity: 0; } }
 @keyframes tsCik { to { opacity: 0; transform: scale(1.05); } }
 /* Dönen ışık hüzmeleri (başarısızlıkta yok) */
+/* Sarmalayıcı sabittir ve maskeyi taşır; dönen yalnızca içteki <i>. Maske ile dönme aynı öğede
+   olunca ve katman ekrandan çok büyük olunca iOS Safari gizlendikten sonra hayalet bırakabiliyor.
+   Öğe her açılışta yeniden oluşturulur, kapanınca silinir (istemci). */
 .ts-isinlar {
-  position: absolute; left: 50%; top: 44%; width: 170vmax; height: 170vmax; margin: -85vmax 0 0 -85vmax; pointer-events: none;
-  background: repeating-conic-gradient(from 0deg, rgba(var(--ana), .17) 0deg 6deg, transparent 6deg 18deg);
-  -webkit-mask-image: radial-gradient(circle, #000 0, rgba(0, 0, 0, .6) 18%, transparent 46%);
-  mask-image: radial-gradient(circle, #000 0, rgba(0, 0, 0, .6) 18%, transparent 46%);
-  animation: tsDon 22s linear infinite, tsGir .8s ease-out;
+  --isin: min(130vmax, 1400px);
+  position: absolute; left: 50%; top: 44%; width: var(--isin); height: var(--isin);
+  margin: calc(var(--isin) / -2) 0 0 calc(var(--isin) / -2); pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 0, rgba(0, 0, 0, .6) 36%, transparent 92%);
+  mask-image: radial-gradient(circle closest-side, #000 0, rgba(0, 0, 0, .6) 36%, transparent 92%);
+  animation: tsGir .8s ease-out; transition: opacity .2s;
 }
+.ts-isinlar i {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(var(--ana), .17) 0deg 6deg, transparent 6deg 18deg);
+  animation: tsDon 22s linear infinite;
+}
+.tur-sonu.cikis .ts-isinlar { opacity: 0; }
 .tur-sonu.kaldi .ts-isinlar { display: none; }
 @keyframes tsDon { to { transform: rotate(360deg); } }
 .ts-icerik { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; max-width: 100%; }
@@ -1050,7 +1059,7 @@ body.sonuc-acik .afis { transform-origin: top; }
   100% { opacity: 0; transform: translateY(-14px) scale(.96); }
 }
 
-.efekt-tuval { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 30; }
+.efekt-tuval { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
 .ucan-yazi {
   position: fixed; z-index: 31; pointer-events: none; transform: translate(-50%, -100%);
   font-weight: 900; font-size: 16px; white-space: nowrap; text-shadow: 0 2px 8px rgba(0, 0, 0, .6);
@@ -1126,8 +1135,15 @@ html::after {
 .kart::before {
   content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
   background: linear-gradient(165deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .03) 38%, rgba(124, 92, 255, .22) 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
+  display: none; /* maske desteklenmiyorsa degrade kartın tamamını kaplamasın */
+}
+/* Parlayan kenar, iç kısmı maskeyle oyularak çizilir. Yalnızca tarayıcının gerçekten desteklediği
+   yöntem kullanılır: standart "exclude" ya da eski WebKit'in "xor"u. İkisi de yoksa kenar çizilmez. */
+@supports (mask-composite: exclude) {
+  .kart::before { display: block; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }
+}
+@supports (not (mask-composite: exclude)) and (-webkit-mask-composite: xor) {
+  .kart::before { display: block; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; }
 }
 .sonuc-hero { border-radius: calc(var(--yaricap) - 1px) calc(var(--yaricap) - 1px) 0 0; }
 .katman { background: rgba(8, 6, 26, .6); -webkit-backdrop-filter: blur(8px) saturate(1.2); backdrop-filter: blur(8px) saturate(1.2); }
@@ -1148,6 +1164,12 @@ html::after {
 .btn.ana:hover:not(:disabled)::after { animation: parilti .8s var(--gecis); }
 @keyframes parilti { to { left: 130%; } }
 .btn.genis { border-radius: 14px; }
+/* Genel .btn kuralı (position: relative) sabit konumlu düğmeleri ezmesin */
+.btn.sonuc-ac {
+  position: fixed; background: rgba(30, 25, 78, .94); border-color: rgba(167, 139, 250, .45); white-space: nowrap;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .04);
+}
+.btn.sonuc-ac:hover:not(:disabled) { background: rgba(44, 37, 104, .96); }
 :focus-visible { outline: 2px solid #ffd25e; outline-offset: 3px; }
 /* Giriş alanlarının kendi odak halkası var (kenarlık + parıltı) */
 input:focus-visible, select:focus-visible { outline: none; }

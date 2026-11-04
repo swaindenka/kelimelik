@@ -118,12 +118,43 @@ if (urlKod && oku('ka_oda') === urlKod.toUpperCase() && oku('ka_isim')) {
 $('kodGir').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('katil').click(); });
 $('isim').addEventListener('keydown', (e) => { if (e.key === 'Enter') ($('kodGir').value.trim() ? $('katil') : $('odaKur')).click(); });
 
+// ---------- Açık odalar listesi (giriş ekranı) ----------
+const DURUM_AD = { lobi: 'Lobide bekliyor', oyun: 'Oyunda', sonuc: 'Oyunda', bitti: 'Oyun bitti' };
+function odaListesiCiz(liste) {
+  const ul = $('odaListesi');
+  ul.innerHTML = '';
+  $('acikOdaSayi').textContent = liste.length;
+  $('acikOdaSayi').classList.toggle('gizli', !liste.length);
+  if (!liste.length) {
+    ul.innerHTML = '<li class="bos">Şu an açık oda yok — yeni bir oda kurup ilk sen ol!</li>';
+    return;
+  }
+  for (const o of liste) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'oda-satir' + (o.durum === 'lobi' ? ' lobide' : '');
+    btn.innerHTML = '<span class="oda-bilgi"><b class="oda-ad"></b><small class="oda-alt"></small></span><span class="oda-sayi"></span><span class="oda-katil">Katıl →</span>';
+    btn.querySelector('.oda-ad').textContent = `${o.sahip} · ${o.kod}`;
+    const durum = o.durum === 'lobi' || o.durum === 'bitti' ? DURUM_AD[o.durum] : `${DURUM_AD[o.durum]} · Seviye ${o.seviye}`;
+    btn.querySelector('.oda-alt').textContent = `${durum} · ${(o.dil || 'tr').toUpperCase()} · ${ZORLUK_AD[o.zorluk] || ''}`;
+    btn.querySelector('.oda-sayi').textContent = `👥 ${o.oyuncu}`;
+    btn.title = `${o.kod} odasına katıl`;
+    btn.onclick = () => { $('kodGir').value = o.kod; katil(o.kod); };
+    li.appendChild(btn);
+    ul.appendChild(li);
+  }
+}
+socket.on('odaListesi', (liste) => { if (!odaKodu) odaListesiCiz(Array.isArray(liste) ? liste : []); });
+odaListesiCiz([]);
+
 // Bağlantı koparsa otomatik yeniden katıl
 socket.on('connect', () => {
   $('baglanti').classList.add('gizli');
+  if (!odaKodu) socket.emit('listeIzle');
   if (odaKodu) {
     socket.emit('katil', { kod: odaKodu, isim: $('isim').value || oku('ka_isim'), oyuncuId: benimId }, (c) => {
-      if (c.hata) { odaKodu = null; ekranGoster('giris'); $('girisHata').textContent = 'Oda kapanmış: ' + c.hata; }
+      if (c.hata) { odaKodu = null; ekranGoster('giris'); $('girisHata').textContent = 'Oda kapanmış: ' + c.hata; socket.emit('listeIzle'); }
       else gecmisiYukle(c);
     });
   }
@@ -154,6 +185,7 @@ function odadanAyril() {
   $('kodGir').value = '';
   $('girisHata').textContent = '';
   ekranGoster('giris');
+  if (socket.connected) socket.emit('listeIzle');
   Ses.cal('tikla');
 }
 
@@ -472,7 +504,12 @@ function lobiCiz() {
   $('ilerlemeAciklama').textContent = yildizAtlar()
     ? '★ +1 · ★★ +2 · ★★★ +3 seviye · 👑 patron seviyeleri atlanamaz'
     : 'Kaç yıldız alınırsa alınsın bir sonraki seviyeye geçilir';
-  $('ayarSure').disabled = $('ayarCan').disabled = $('ayarIlerleme').disabled = !sahibim();
+  const acik = D.ayar.acik !== false;
+  $('ayarAcik').checked = acik;
+  $('acikAciklama').textContent = acik
+    ? 'Giriş ekranındaki listeden herkes katılabilir'
+    : 'Gizli oda · yalnızca kod ya da davet linkiyle katılınır';
+  $('ayarSure').disabled = $('ayarCan').disabled = $('ayarIlerleme').disabled = $('ayarAcik').disabled = !sahibim();
   const z = D.ayar.zorluk || 'normal';
   for (const b of $('zorlukSecim').children) {
     b.classList.toggle('secili', b.dataset.zorluk === z);
@@ -496,6 +533,7 @@ function lobiCiz() {
 }
 $('ayarSure').onchange = $('ayarCan').onchange = $('ayarIlerleme').onchange = () =>
   socket.emit('ayar', { sure: Number($('ayarSure').value), can: Number($('ayarCan').value), ilerleme: $('ayarIlerleme').value });
+$('ayarAcik').onchange = () => { if (sahibim()) { socket.emit('ayar', { acik: $('ayarAcik').checked }); Ses.cal('tikla'); } };
 $('baslat').onclick = () => socket.emit('baslat');
 
 const ZORLUK_ACIKLAMA = {

@@ -66,6 +66,10 @@
         <button id="katil" class="btn">Katıl →</button>
       </div>
       <p id="girisHata" class="hata"></p>
+      <section class="acik-odalar" aria-labelledby="acikOdaBaslik">
+        <div class="ayrac"><span id="acikOdaBaslik">🌍 açık odalar <b id="acikOdaSayi" class="sayi-rozet gizli">0</b></span></div>
+        <ul id="odaListesi" class="oda-listesi" aria-live="polite"></ul>
+      </section>
       <button type="button" class="btn hayalet kucuk kural-ac">📖 Nasıl oynanır?</button>
     </div>
   </section>
@@ -133,6 +137,10 @@
               </select>
             </label>
             <p id="ilerlemeAciklama" class="zorluk-aciklama"></p>
+            <label class="yatay acik-ayar">
+              <span><b>🌍 Açık odalar listesinde görünsün</b><small id="acikAciklama"></small></span>
+              <input type="checkbox" id="ayarAcik">
+            </label>
           </section>
           <section class="kart lobi-blok blok-harf">
             <h3>Harf puanları</h3>

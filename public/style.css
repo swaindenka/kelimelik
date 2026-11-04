@@ -1458,7 +1458,27 @@ kbd { font: inherit; font-size: 12px; font-weight: 700; padding: 1px 6px; border
   .tas:active:not(:disabled) { transform: translateY(2px); }
   .dil-secim button:hover:not(:disabled), .zorluk-secim button:hover:not(:disabled), .tepki-btn:hover, .logo span:hover { transform: none; }
   .btn.ana:hover:not(:disabled)::after { animation: none; }
+  /* Kelime bulununca çalışan efektler: 3B dönme, filtre ve büyük bulanık ışımalar yok */
+  .slot { perspective: none; }
+  .slot.yeni .k { animation-name: harfAcSade; }
+  .sahne.flas-dogru { animation-name: sahneDogruSade; }
+  .sahne.flas-bonus { animation-name: sahneBonusSade; }
+  .grup.yeni-tamam { animation-name: grupTamamSade; }
+  /* Hazine kutuları: sürekli yanıp sönen ışıma yerine sabit altın çerçeve */
+  .slot.hazine:not(.bulundu):not(.kacti) .k { animation: none; box-shadow: inset 0 2px 4px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 200, 61, .5); }
+  .slot.hazine.bulundu .k { box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .2), 0 0 0 2px #ffc83d; }
+  .slot .hz-rozet { animation: none; filter: none; text-shadow: 0 2px 3px rgba(0, 0, 0, .7); }
+  /* Duyurular ve uçan yazılar: degrade yazı ve renkli parıltı yerine düz renk ve koyu gölge */
+  .afis.altin b { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: #ffd25e; }
+  .afisler .afis { box-shadow: 0 10px 24px rgba(0, 0, 0, .5) !important; }
+  .ucan-puan { text-shadow: 0 2px 6px rgba(0, 0, 0, .85); }
+  .seri-rozet { box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
 }
+
+@keyframes harfAcSade { 0% { transform: scale(.55); opacity: .2; } 100% { transform: none; opacity: 1; } }
+@keyframes sahneDogruSade { 0% { box-shadow: var(--golge), 0 0 0 4px var(--iyi); } 100% { box-shadow: var(--golge); } }
+@keyframes sahneBonusSade { 0% { box-shadow: var(--golge), 0 0 0 4px var(--vurgu); } 100% { box-shadow: var(--golge); } }
+@keyframes grupTamamSade { 0% { box-shadow: 0 0 0 3px var(--iyi); } 100% { box-shadow: 0 0 0 0 transparent; } }
 
 /* "Saydamlığı azalt" açık olanlar için cam yüzeyler düz zemin olur */
 @media (prefers-reduced-transparency: reduce) {

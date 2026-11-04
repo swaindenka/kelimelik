@@ -14,8 +14,6 @@ const dokunmatik = matchMedia('(pointer: coarse)').matches;
 const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 if (iOS) {
   // iOS Safari maximum-scale'i yalnızca otomatik yakınlaştırmada uygular; kullanıcı yine iki parmakla yakınlaştırabilir
-  const vp = document.querySelector('meta[name=viewport]');
-  if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1';
   document.documentElement.classList.add('ios');
 }
 // iOS'ta katman kapandıktan sonra ekranda iz kalmasın diye sayfayı bir kare yeniden boyatır
@@ -1918,6 +1916,7 @@ const mobilMq = matchMedia('(max-width: 860px)');
 let tamYukseklik = 0;     // klavye kapalıyken görünür alan yüksekliği
 let olcuGenislik = 0;
 let klavyeAcik = false;
+let tasYukseklik = 0;     // taş boyunun hesaplandığı görünür yükseklik
 const girdiOdakta = () => { const a = document.activeElement; return !!a && (a.tagName === 'INPUT' && !['checkbox', 'range'].includes(a.type) || a.tagName === 'TEXTAREA'); };
 function gorunurYukseklik() { return window.visualViewport ? visualViewport.height : innerHeight; }
 function klavyePayi() { return klavyeAcik ? Math.max(0, tamYukseklik - gorunurYukseklik()) : 0; }
@@ -1938,6 +1937,12 @@ function gorunumGuncelle() {
   kok.setProperty('--vvh', Math.round(h) + 'px');
   kok.setProperty('--vv-ust', Math.round(vv ? vv.offsetTop : 0) + 'px');
   const yeni = mobilMq.matches && odak && tamYukseklik - h > 120;
+  // Taş boyu için yükseklik yalnızca klavye açılıp kapanınca ya da 60 px'ten büyük değişimde güncellenir:
+  // klavyenin öneri çubuğu görünüp kaybolunca (≈40 px) taşlar büyüyüp küçülmesin
+  if (yeni !== klavyeAcik || !tasYukseklik || Math.abs(h - tasYukseklik) > 60) {
+    tasYukseklik = h;
+    kok.setProperty('--vvh-tas', Math.round(h) + 'px');
+  }
   if (yeni !== klavyeAcik) {
     klavyeAcik = yeni;
     document.body.classList.toggle('klavye', yeni);

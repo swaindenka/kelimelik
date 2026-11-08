@@ -633,6 +633,13 @@ body.tur-sonu-acik .kenar-nabiz { opacity: 0; animation: none; }
 .tas.bomba .f { background: linear-gradient(180deg, #ff8a3d, #e8590c); box-shadow: 0 2px 0 #a63e09, 0 0 12px rgba(255, 107, 61, .8); }
 .tas.bomba .f::before { content: '💣'; font-size: .95em; margin-right: 1px; }
 .tas.bomba.acil { animation: bombaAcil .5s ease-in-out infinite alternate; }
+/* İmha için gereken en kısa kelime (sol alt köşe) */
+.tas.bomba[data-bmin]::before {
+  content: attr(data-bmin); position: absolute; left: calc(var(--b) * -.1); bottom: calc(var(--b) * -.12); z-index: 2;
+  padding: calc(var(--b) * .03) calc(var(--b) * .07); border-radius: 20px;
+  font-size: calc(var(--b) * .17); font-weight: 900; line-height: 1.15; color: #fff;
+  background: linear-gradient(180deg, #5c4a8a, #2b2147); box-shadow: 0 2px 0 #1a1430, 0 0 0 1px #ff8a3d;
+}
 .tas.bomba.acil .f { background: linear-gradient(180deg, #ff4d4d, #c92a2a); }
 @keyframes bombaAcil { to { box-shadow: 0 calc(var(--b) * .085) 0 var(--tas-golge), 0 0 0 4px #ff2d2d, 0 0 36px rgba(255, 45, 45, .95); transform: scale(1.04); } }
 .tas.patladi { background: linear-gradient(180deg, #8a6f5c 0%, #5c4636 100%); color: #ffe8cc; box-shadow: 0 calc(var(--b) * .085) 0 #3b2a1f, 0 calc(var(--b) * .18) calc(var(--b) * .3) rgba(0, 0, 0, .32); }

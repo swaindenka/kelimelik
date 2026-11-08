@@ -149,22 +149,21 @@ function seviyeTuru(seviye, onceki = null) {
   return havuz.length ? havuz[Math.floor(Math.random() * havuz.length)] : 'normal';
 }
 
-// Buzlu taş seçimi: buz, tahtaya göre adil olmalı. Her aday harf için buz çözülmeden
+// Buzlu taş seçimi: buz, tahtaya göre adil ama etkili olmalı. Her aday harf için buz çözülmeden
 // yazılabilen (serbest) ve buz yüzünden kilitlenen (engel) tahta kelimeleri sayılır.
-// Önce "en az 5 serbest, en az 2 engel" olan, olmazsa "en az 4 serbest, en az 1 engel"
-// olan harfler arasından seçilir; hiçbiri yoksa o seviyede buz çıkmaz. (En az 4 serbest
-// kelime şart: buzu kırmak için en az 2 kelime istenir ve bu, serbest kelimelerin yarısını geçmemeli.)
+// Önce "en az 6 serbest, en az 3 engel", olmazsa "5 serbest, 2 engel", olmazsa "4 serbest, 1 engel"
+// olan harfler arasından seçilir; hiçbiri yoksa o seviyede buz çıkmaz. Havuzda en çok kelimeyi
+// kilitleyen harfler öne alınır (buz gerçekten bir şey dondursun).
 function buzSec(harfler, tahta, harfSayaci) {
   const adaylar = [...new Set(harfler.filter((h) => !h.gizli && !h.bomba && !h.sahte).map((h) => h.ch))].map((ch) => {
     const kalan = { ...harfSayaci, [ch]: harfSayaci[ch] - 1 };
     const serbest = tahta.filter((s) => sigarMi(sayac(s.w), kalan)).length;
     return { ch, serbest, engel: tahta.length - serbest };
   });
-  const uygun = adaylar.filter((a) => a.serbest >= 5 && a.engel >= 2);
-  const yedek = adaylar.filter((a) => a.serbest >= 4 && a.engel >= 1);
-  const havuz = uygun.length ? uygun : yedek;
-  if (!havuz.length) return null;
-  const secim = havuz[Math.floor(Math.random() * havuz.length)];
+  const havuz = [[6, 3], [5, 2], [4, 1]].map(([sb, en]) => adaylar.filter((a) => a.serbest >= sb && a.engel >= en)).find((h) => h.length);
+  if (!havuz) return null;
+  const ust = havuz.sort((a, b) => b.engel - a.engel).slice(0, Math.max(1, Math.ceil(havuz.length / 2)));
+  const secim = ust[Math.floor(Math.random() * ust.length)];
   // Aynı harften birden çok taş varsa çarpansız olan dondurulur (çarpanlı taş kullanılabilir kalsın)
   const taslar = harfler.filter((h) => h.ch === secim.ch && !h.gizli && !h.bomba).sort((a, b) => a.carpan - b.carpan);
   return { tas: taslar[0], ...secim };
@@ -177,10 +176,12 @@ function buzluKelime(lv, w) {
   return !sigarMi(sayac(w), { ...lv.harfSayaci, [b.ch]: lv.harfSayaci[b.ch] - 1 });
 }
 
-// Buzu kırmak için gereken kelime: buz çözülmeden yazılabilen kelime sayısına göre
-// yaklaşık her 5 serbest kelimeye 1; en az 2, en çok 4 ve hiçbir zaman serbest kelimelerin yarısından fazla değil
-function buzEsigi(serbest) {
-  return Math.max(2, Math.min(4, Math.round(serbest / 5), Math.floor(serbest / 2)));
+// Buzu kırmak için gereken tahta kelimesi (bonus kelimeler buzu kırmaz): yaklaşık her 4 serbest
+// kelimeye 1 (3–6 arası), her 2 ek oyuncu için +1 (en çok +3); hiçbir zaman serbest kelimelerin %55'inden fazla değil
+function buzEsigi(serbest, oyuncu = 1) {
+  const taban = Math.max(3, Math.min(6, Math.round(serbest / 4)));
+  const kalabalik = Math.min(3, Math.floor((Math.max(1, oyuncu) - 1) / 2));
+  return Math.max(2, Math.min(taban + kalabalik, Math.floor(serbest * 0.55)));
 }
 
 // Taşa muhtaç kelimeler: o taş olmadan yazılamayan tahta kelimeleri
@@ -197,23 +198,27 @@ function gizliSec(harfler, tahta, harfSayaci) {
   return havuz[Math.floor(Math.random() * havuz.length)];
 }
 
-// Bomba harf: harfi içeren kelime ne çok az (imha edilemez) ne çok fazla (ilk kelime imha eder) olsun.
-// Önce tahtanın %12–50'sinde geçen, olmazsa %65'e kadar geçen harfler; buz olmadan en az 2 tanesi
-// yazılabilmeli. Uygun harf yoksa o seviyede bomba çıkmaz.
-function bombaSec(harfler, tahta, harfSayaci) {
+// Bomba harf: yalnızca o harfi içeren UZUN bir kelime (en az `min` harf) bombayı imha eder; böylece
+// ilk bulunan kısa kelimeler bombayı kendiliğinden söndürmez. Harf, tahtadaki kelimelerin %8–40'ında
+// (olmazsa %55'ine kadar) uzun hâliyle geçmeli ve buz olmadan en az 2 böyle kelime yazılabilmeli.
+// `min` için önce istenen uzunluk, sonra bir kısası denenir. Uygun harf yoksa null.
+// Dönen: { taslar: [ana taş, yedek taş|null], min } — yedek, zincirleme bomba için farklı bir harf.
+function bombaSec(harfler, tahta, harfSayaci, istenenMin, enKisa) {
   const buzlu = harfler.find((h) => h.buz);
   const kullanilir = buzlu ? { ...harfSayaci, [buzlu.ch]: harfSayaci[buzlu.ch] - 1 } : harfSayaci;
   const taslar = harfler.filter((h) => !h.gizli && !h.buz && !h.sahte);
-  const adaylar = [...new Set(taslar.map((h) => h.ch))].map((ch) => {
-    const icerir = tahta.filter((s) => s.w.includes(ch));
-    return { ch, oran: icerir.length / tahta.length, yazilir: icerir.filter((s) => sigarMi(sayac(s.w), kullanilir)).length };
-  }).filter((a) => a.yazilir >= 2);
-  const uygun = adaylar.filter((a) => a.oran >= 0.12 && a.oran <= 0.5);
-  const yedek = adaylar.filter((a) => a.oran <= 0.65);
-  const havuz = uygun.length ? uygun : yedek;
-  if (!havuz.length) return null;
-  const ch = havuz[Math.floor(Math.random() * havuz.length)].ch;
-  return taslar.filter((h) => h.ch === ch).sort((a, b) => a.carpan - b.carpan)[0];
+  for (let min = istenenMin; min >= enKisa; min--) {
+    const adaylar = [...new Set(taslar.map((h) => h.ch))].map((ch) => {
+      const icerir = tahta.filter((s) => s.w.length >= min && s.w.includes(ch));
+      return { ch, oran: icerir.length / tahta.length, yazilir: icerir.filter((s) => sigarMi(sayac(s.w), kullanilir)).length };
+    }).filter((a) => a.yazilir >= 2);
+    const uygun = adaylar.filter((a) => a.oran >= 0.08 && a.oran <= 0.4);
+    const havuz = karistir(uygun.length ? uygun : adaylar.filter((a) => a.oran <= 0.55));
+    if (!havuz.length) continue;
+    const tasBul = (a) => a && taslar.filter((h) => h.ch === a.ch).sort((x, y) => x.carpan - y.carpan)[0];
+    return { taslar: [tasBul(havuz[0]), tasBul(havuz[1]) || null], min };
+  }
+  return null;
 }
 
 // Zar turu: çarpanları sil, uygun taşlardan ikisine yeniden ×2 / ×3 ver; bulunmamış kelimelerin
@@ -268,7 +273,11 @@ function seviyeAyari(seviye, zorluk = ZORLUKLAR.normal, tur = TURLER.normal, kal
   const tuzak = { gizli, sahte, buz, bomba };
   const acik = karistir(Object.keys(tuzak).filter((k) => tuzak[k]));
   for (const k of acik.slice(tavan)) tuzak[k] = false;
-  return { uzunluk, minHarf, oran, ...tuzak, minKelime: kalabalik.minKelime, maxKelime: kalabalik.maxKelime };
+  // Bombayı imha eden kelime en az kısa kelime sınırından 1 harf uzun olmalı, 14. etkin seviyeden sonra 2;
+  // 14. etkin seviyeden sonra imha edilen bombanın yerine bir kez yenisi kurulur (zincirleme bomba)
+  const bombaMin = Math.min(uzunluk - 1, minHarf + (e >= 14 ? 2 : 1));
+  const bombaZincir = e >= 14;
+  return { uzunluk, minHarf, oran, ...tuzak, bombaMin, bombaZincir, minKelime: kalabalik.minKelime, maxKelime: kalabalik.maxKelime };
 }
 
 // secenek.oyuncu: seviye başındaki bağlı oyuncu sayısı (kalabalık dengesi)
@@ -320,8 +329,8 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd, dilKod = 'tr', secenek =
   // o harfi içeren bir kelime bulunmazsa patlar (süre sunucuda kurulur). İkisi de gizli harf olmaz.
   const buz = ayar.buz ? buzSec(harfler, tahta, tohum.c) : null;
   if (buz) buz.tas.buz = true;
-  const bomba = ayar.bomba ? bombaSec(harfler, tahta, tohum.c) : null;
-  if (bomba) bomba.bomba = true;
+  const bomba = ayar.bomba ? bombaSec(harfler, tahta, tohum.c, ayar.bombaMin, ayar.minHarf) : null;
+  if (bomba) bomba.taslar[0].bomba = true;
   if (ayar.sahte) {
     // Kelimede olmayan, rastgele bir harf ekle — çoğu zaman cazip, yüksek puanlı bir harf
     const yok = [...dil.alfabe].filter((ch) => !tohum.c[ch]);
@@ -350,8 +359,11 @@ function seviyeUret(seviye, zorlukAd = 'normal', turAd, dilKod = 'tr', secenek =
     kalabalik,
     kumsaati: !!tur.kumsaati,
     // Buz, bu kadar kelime (tahta ya da bonus) bulununca çözülür
-    buzKalan: buz ? buzEsigi(buz.serbest) : 0,
+    buzKalan: buz ? buzEsigi(buz.serbest, kalabalik.n) : 0,
     buzSerbest: buz ? buz.serbest : 0, // buz çözülmeden yazılabilen tahta kelimesi
+    // Bomba: imha için gereken en kısa kelime; zincirleme bombada sıradaki taşın indeksi
+    bombaMin: bomba ? bomba.min : 0,
+    bombaYedek: bomba && ayar.bombaZincir && bomba.taslar[1] ? harfler.indexOf(bomba.taslar[1]) : -1,
     takimPuan: 0,
   };
   // Puan hedefi: tahtadaki bütün kelimelerin toplam puanının belli bir oranı

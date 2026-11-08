@@ -378,8 +378,8 @@ function gecisleriIsle(o, d) {
     if (lv.tahta.some((s) => s.hz)) notlar.push('🗝️ hazine kelime');
     if (lv.gizliVar) notlar.push('gizli harf var');
     if (lv.sahteVar) notlar.push('dikkat: bir harf sahte!');
-    if (lv.harfler.some((h) => h.buz)) notlar.push(`❄️ buzlu harf: ${lv.buzKalan} kelimede çözülür · ${lv.tahta.filter((s) => s.bz).length} kelime kilitli`);
-    if (lv.harfler.some((h) => h.bomba)) notlar.push(`💣 bomba harf: ${Math.round((lv.bombaBitis - simdi()) / 1000)} sn içinde kullanın`);
+    if (lv.harfler.some((h) => h.buz)) notlar.push(`❄️ buzlu harf: ${lv.buzKalan} tahta kelimesinde çözülür · ${lv.tahta.filter((s) => s.bz).length} kelime kilitli`);
+    if (lv.harfler.some((h) => h.bomba)) notlar.push(`💣 bomba harf: ${Math.round((lv.bombaBitis - simdi()) / 1000)} sn içinde ${lv.bombaMin ? lv.bombaMin + '+ harfli ' : ''}bir kelimede kullanın${lv.bombaZincir ? ' · zincirleme!' : ''}`);
     const kb = lv.kalabalik;
     if (kb?.n > 1 && lv.tabanHedef) notlar.push(`👥 ${kb.n} kişi: hedef +%${Math.round((lv.puanHedef / lv.tabanHedef - 1) * 100)}`);
     afis(`Seviye ${d.seviye}`, notlar.join(' · '), 'seviye', 'basla');
@@ -446,10 +446,18 @@ socket.on('akis', (k) => {
   } else if (k.olay === 'bombaImha') {
     Ses.cal('imha');
     afis('💣 Bomba imha edildi!', `${ad(k.id)} · +${k.puan} puan`, 'yesil');
+  } else if (k.olay === 'bombaYeni') {
+    // Zincirleme bomba: imha edilen bombanın yerine başka harfte yeni fitil
+    setTimeout(() => {
+      Ses.cal('bombaTik');
+      afis('💣 Zincirleme bomba!', k.metin.replace(/^💣 Zincirleme bomba! /, ''), 'kirmizi');
+      const t = taslar[D?.lv?.harfler.findIndex((h) => h.bomba)];
+      if (t) yenidenOynat(t, 'sallan');
+    }, 450);
   } else if (k.olay === 'bombaPatladi') {
     Ses.cal('patlama');
     titret([120, 60, 220]);
-    afis('💥 BOMBA PATLADI!', '−10 saniye', 'kirmizi');
+    afis('💥 BOMBA PATLADI!', `−${Math.round((k.ceza || 10000) / 1000)} saniye`, 'kirmizi');
     Efekt.flas('rgba(255,80,60,.35)');
     yenidenOynat($('sahne'), 'sarsil');
     const t = taslar[D?.lv?.harfler.findIndex((h) => h.patladi)];
@@ -1110,10 +1118,12 @@ function taslariGuncelle(lv) {
     t.classList.toggle('bomba', !!h.bomba);
     t.classList.toggle('patladi', !!h.patladi);
     if (bombaVardi && !h.bomba && oynaniyor) yenidenOynat(t, h.patladi ? 'patlama' : 'imha');
+    // Bomba taşının sol alt köşesi: imha için gereken en kısa kelime (ör. "5+")
+    if (h.bomba && lv.bombaMin) t.dataset.bmin = lv.bombaMin + '+'; else delete t.dataset.bmin;
     if (h.buz) t.querySelector('.f').textContent = lv.buzKalan; // kaç kelime sonra çözülecek
     else if (!h.bomba) t.querySelector('.f').textContent = '';
-    if (h.buz) t.title = `❄️ Buzlu harf: ${lv.buzKalan} kelime daha bulununca çözülür`;
-    else if (h.bomba) t.title = `💣 Bomba harf: bu harfi içeren bir kelime bulun, yoksa patlar (−10 sn)`;
+    if (h.buz) t.title = `❄️ Buzlu harf: ${lv.buzKalan} tahta kelimesi daha bulununca çözülür (bonus kelimeler saymaz)`;
+    else if (h.bomba) t.title = `💣 Bomba harf: bu harfi içeren ${lv.bombaMin ? 'en az ' + lv.bombaMin + ' harfli ' : ''}bir kelime bulun, yoksa patlar (−${Math.round((lv.bombaCeza || 10000) / 1000)} sn)`;
     t.classList.toggle('kullanildi', kullanilan.has(i));
     // Yeni kullanılan taş küçük bir zıplamayla rafa iner
     if (kullanilan.has(i) && !oncekiKullanilan.has(i) && !azHareket) {
@@ -1170,7 +1180,7 @@ function tasTikla(i) {
   if (h.buz) {
     yenidenOynat(t, 'sallan');
     Ses.cal('zaten');
-    geriBildirim(`❄️ Buzlu harf — ${lv.buzKalan} kelime daha bulununca çözülür`, 'notr');
+    geriBildirim(`❄️ Buzlu harf — ${lv.buzKalan} tahta kelimesi daha bulununca çözülür`, 'notr');
     return;
   }
   if (h.sahte || h.ch === '?' || eslestir(lv, $('tahmin').value).kullanilan.has(i)) {
@@ -1776,7 +1786,7 @@ const mesajlar = {
   zaten: (c) => `${trBuyuk(c.w)} zaten bulundu (${ad(c.bulan)})`,
   zatenBonus: (c) => `${trBuyuk(c.w)} zaten bonus olarak bulundu`,
   yavas: () => 'Biraz yavaş :)',
-  buz: (c) => `❄️ ${trBuyuk(c.ch)} buzlu — ${c.kalan} kelime daha bulununca çözülür`,
+  buz: (c) => `❄️ ${trBuyuk(c.ch)} buzlu — ${c.kalan} tahta kelimesi daha bulununca çözülür`,
 };
 let bildirimZaman;
 function geriBildirim(metin, tur) {
@@ -1838,7 +1848,7 @@ function tahminSonucu(c) {
     Ses.cal(c.buyuk ? 'buyuk' : 'dogru');
     Ses.cal('puan', Math.round(c.puan / 60));
     const gorevOdul = (c.gorev || []).reduce((t, x) => t + x, 0);
-    const ekler = [c.buyuk && 'BÜYÜK KELİME!', c.zincir && `🔗 ZİNCİR ×2`, c.hazine && '🗝️ HAZİNE', c.bombaOdul && `💣 +${c.bombaOdul}`, gorevOdul && `🎯 +${gorevOdul}`, c.kumEk && `⏳ +${Math.round(c.kumEk / 1000)} sn`, c.sonHamle && '⏱ ×1.5'].filter(Boolean);
+    const ekler = [c.buyuk && 'BÜYÜK KELİME!', c.zincir && `🔗 ZİNCİR ×2`, c.hazine && '🗝️ HAZİNE', c.bombaOdul && `💣 +${c.bombaOdul}`, c.bombaKisa && `💣 bomba için ${D?.lv?.bombaMin}+ harf`, gorevOdul && `🎯 +${gorevOdul}`, c.kumEk && `⏳ +${Math.round(c.kumEk / 1000)} sn`, c.sonHamle && '⏱ ×1.5'].filter(Boolean);
     geriBildirim(`${trBuyuk(c.w)} +${c.puan}${ekler.length ? ' — ' + ekler.join(' · ') : ''}`, c.buyuk || c.hazine ? 'altin' : 'iyi');
     yenidenOynat(sahne, c.hazine ? 'flas-bonus' : 'flas-dogru');
     if (c.seri >= 2) { setTimeout(() => Ses.cal('seri', c.seri), 200); seriGoster(c.seri, c.seriBonus); }
@@ -1848,7 +1858,7 @@ function tahminSonucu(c) {
     Ses.cal('bonus');
     Ses.cal('puan', Math.max(1, Math.round(c.puan / 60)));
     const gorevOdul = (c.gorev || []).reduce((t, x) => t + x, 0);
-    geriBildirim(`Bonus kelime: ${trBuyuk(c.w)} +${c.puan}${c.zincir ? ' · 🔗×2' : ''}${c.bombaOdul ? ` · 💣 +${c.bombaOdul}` : ''}${gorevOdul ? ` · 🎯 +${gorevOdul}` : ''}${c.sonHamle ? ' ⏱' : ''}`, 'altin');
+    geriBildirim(`Bonus kelime: ${trBuyuk(c.w)} +${c.puan}${c.zincir ? ' · 🔗×2' : ''}${c.bombaOdul ? ` · 💣 +${c.bombaOdul}` : ''}${c.bombaKisa ? ` · 💣 bomba için ${D?.lv?.bombaMin}+ harf` : ''}${gorevOdul ? ` · 🎯 +${gorevOdul}` : ''}${c.sonHamle ? ' ⏱' : ''}`, 'altin');
     yenidenOynat(sahne, 'flas-bonus');
     const m = merkez($('tahmin'));
     Efekt.patlama(m.x, m.y, '#ffc83d', 16);
